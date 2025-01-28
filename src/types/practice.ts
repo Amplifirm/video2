@@ -1,18 +1,13 @@
 // src/types/practice.ts
 
 export interface UserProfile {
-    id: string;
-    username?: string;
-    age?: number;
-    math_course: string;
-    school?: string;
-    recentPerformance?: string;
-    preferredTopics?: string[];
-    skillLevel?: number;
-    avatar_url?: string;
-    created_at?: string;
-    updated_at?: string;
-  }
+  id: string;
+  first_name: string;
+  subject: string;  // The current subject being practiced
+  course: string;   // The specific course level (e.g., 'IB Economics HL')
+  math_course?: string; // Keep for backward compatibility
+  skillLevel?: number;
+}
   
   export interface QuestionDetails {
     topic: string;
@@ -20,28 +15,6 @@ export interface UserProfile {
     difficulty: string;
     expectedSteps: string[];
     examStyle: string;
-  }
-  
-  export interface Question {
-    content: string;
-    details: QuestionDetails;
-  }
-  
-  export interface StepCheck {
-    isCorrect: boolean;
-    feedback?: string;
-    canContinue: boolean;
-    skippedSteps?: number;
-    attemptsLeft?: number;
-    showStepAvailable?: boolean;
-  }
-  
-  export interface StepExplanation {
-    hint?: string;
-    conceptExplanation?: string;
-    prerequisites?: string[];
-    commonMistakes?: string[];
-    additionalExamples?: string[];
   }
   
 
@@ -103,17 +76,75 @@ export interface UserProfile {
     tips: string[];
   }
   
-  export interface Solution {
-    solution: {
-      explanation: string;
-      working: string;
-      tips: string[];
-    };
-  }
+
   
   export interface ClaudeSolutionResponse {
     solution?: Solution;
     error?: string;
   }
 
-  
+  // types/practice.ts
+
+export interface Question {
+  content: string;
+  details: {
+    topic: string;
+    subtopic: string;
+    difficulty: string;
+    examStyle: string;
+    expectedSteps: string[];
+    subjectSpecific?: {
+      formulasNeeded?: string[];
+      calculatorRequired?: boolean;
+      diagramRequired?: boolean;
+      diagram?: string;
+      graphsRequired?: boolean;
+      graphReference?: string;
+      programmingLanguage?: string;
+      wordLimit?: number;
+    };
+  };
+}
+
+export interface StepCheck {
+  isCorrect: boolean;
+  feedback: string;
+  canContinue: boolean;
+  skippedSteps?: number;
+  conceptualUnderstanding: 'Strong' | 'Moderate' | 'Weak';
+  nextQuestionDifficulty?: number;
+  performance?: {
+    accuracy: string;
+    streak: number;
+    level: number;
+  };
+}
+
+export interface Solution {
+  solution: {
+    explanation: string;
+    working: string;
+    tips: string[];
+  };
+}
+
+export interface StepExplanation {
+  hint: string;
+  conceptExplanation: string;
+  prerequisites: string[];
+  commonMistakes: string[];
+  nextSteps: string[];
+  subjectSpecific?: Record<string, any>;
+}
+
+export interface EditorProps {
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  placeholder?: string;
+  className?: string;
+  readOnly?: boolean;
+  graphRequired?: boolean;
+  language?: string;
+  subjectSpecific?: Record<string, any>;
+}

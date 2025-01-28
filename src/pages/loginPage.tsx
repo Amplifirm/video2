@@ -1,302 +1,496 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../config/supabase';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle2, X, ChevronRight, ArrowLeft } from 'lucide-react';
+import { IB_SUBJECTS, GROUP_NAMES, validateStep } from '../types/ibSubjects';
+import type { Subject, FormData } from '../types/ibSubjects';
+
+type GroupNumber = 1 | 2 | 3 | 4 | 5 | 6;
+
+const SubjectCard = ({ 
+  subject, 
+  selected, 
+  onSelect 
+}: {
+  subject: Subject;
+  selected: Subject | null;
+  onSelect: (level?: 'HL' | 'SL') => void;
+}) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    className={`
+      relative p-6 rounded-xl cursor-pointer transition-all duration-200
+      ${selected 
+        ? 'bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-500 shadow-lg' 
+        : 'bg-white border border-gray-200 hover:border-blue-300 hover:shadow-md'}
+    `}
+    onClick={() => onSelect()}
+  >
+    <div className="flex items-center justify-between">
+      <div className="flex-1">
+        <h3 className="font-medium text-gray-900">{subject.name}</h3>
+        {selected && (
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex gap-3 mt-4"
+          >
+            {['HL', 'SL'].map((level) => (
+              <motion.button
+                key={level}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect(level as 'HL' | 'SL');
+                }}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
+                  ${selected.level === level
+                    ? 'bg-blue-500 text-white shadow-md'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}
+                `}
+              >
+                {level}
+              </motion.button>
+            ))}
+          </motion.div>
+        )}
+      </div>
+      {selected && (
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          className="ml-4"
+        >
+          <CheckCircle2 className="w-6 h-6 text-blue-500" />
+        </motion.div>
+      )}
+    </div>
+  </motion.div>
+);
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
-
-  // Basic auth info
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   
-  // Student info
-  const [studentInfo, setStudentInfo] = useState({
-    age: '',
-    mathCourse: '',
+  const [formData, setFormData] = useState<FormData>({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
     school: '',
+    selectedSubjects: {}
   });
 
-  const mathCourseOptions = [
-    'IB Math AA HL',
-    'IB Math AA SL',
-    'IB Math AI HL',
-    'IB Math AI SL'
-  ];
-
-  const validateStep1 = () => {
-    if (!email || !password || password.length < 6) {
-      setError('Please provide a valid email and password (minimum 6 characters)');
-      return false;
-    }
-    return true;
-  };
-
-  const validateStep2 = () => {
-    const { age, mathCourse, school } = studentInfo;
-    if (!age || !mathCourse || !school) {
-      setError('Please fill in all required fields');
-      return false;
-    }
-    return true;
-  };
-
-  const handleNextStep = () => {
-    if (currentStep === 1 && validateStep1()) {
-      setError(null);
-      setCurrentStep(2);
-    }
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Starting auth process...'); // Debug log
-    
-    if (isSignUp && !validateStep2()) return;
-
+  const handleSignup = async () => {
     setLoading(true);
-    setError(null);
-    setMessage(null);
-
     try {
-      if (isSignUp) {
-        console.log('Starting signup...'); // Debug log
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
+      const { data: auth, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (authError) throw authError;
+      if (!auth.user) throw new Error('Signup failed');
+
+      const subjectsData = Object.values(formData.selectedSubjects).map(subject => ({
+        name: subject.name,
+        group: subject.group,
+        level: subject.level
+      }));
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: auth.user.id,
+          email: formData.email,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          school: formData.school,
+          subjects: subjectsData,
+          created_at: new Date().toISOString()
         });
 
-        console.log('Signup response:', signUpData); // Debug log
-
-        if (signUpError) throw signUpError;
-        if (!signUpData.user?.id) throw new Error('No user ID returned from signup');
-
-        console.log('Creating profile...'); // Debug log
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([
-            {
-              id: signUpData.user.id,
-              username: email.split('@')[0],
-              age: Number(studentInfo.age),
-              math_course: studentInfo.mathCourse,
-              school: studentInfo.school,
-            }
-          ]);
-
-        if (profileError) throw profileError;
-
-        console.log('Profile created, navigating...'); // Debug log
-        navigate('/profile-setup');
-      } else {
-        console.log('Starting signin...'); // Debug log
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        console.log('Signin response:', signInData); // Debug log
-
-        if (signInError) throw signInError;
-
-        console.log('Successfully signed in, navigating...'); // Debug log
-        navigate('/profile-setup');
-      }
+      if (profileError) throw profileError;
+      navigate('/dashboard');
     } catch (err) {
-      console.error('Auth error:', err);
-      setError(err instanceof Error ? err.message : 'Authentication failed');
+      setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleNext = () => {
+    const validationError = validateStep(step, formData);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
+    if (step === 9) {
+      handleSignup();
+    } else {
+      setStep(prev => prev + 1);
+      setError(null);
+    }
+  };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-100 flex items-center justify-center px-4">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-xl">
-        {/* Logo */}
-        <div className="flex justify-center">
-          <span className="text-6xl font-bold italic font-serif">x³</span>
+  const renderSubjectsForGroup = (group: GroupNumber) => {
+    const subjects = IB_SUBJECTS[group];
+    
+    return (
+      <motion.div
+        key={`group-${group}`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="space-y-6"
+      >
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="text-xs text-gray-500">
+            Step: {step}, Group: {group}
+          </div>
+        )}
+
+        {/* Group heading */}
+        <div className="bg-blue-50 p-4 rounded-xl">
+          <h3 className="font-medium text-blue-800">
+            Group {group}: {GROUP_NAMES[group]}
+          </h3>
+          {group === 5 && (
+            <p className="text-sm text-blue-600 mt-2">
+              Mathematics is required. Select either AA or AI at your preferred level.
+            </p>
+          )}
         </div>
 
-        <h2 className="mt-6 text-center text-3xl font-bold font-serif text-gray-900">
-          {isSignUp ? 'Create your account' : 'Welcome back'}
-        </h2>
+        {/* Subject cards */}
+        <div className="grid grid-cols-1 gap-4">
+          {subjects.map((subjectData) => {
+            // Create a proper Subject object with level
+            const subject: Subject = {
+              ...subjectData,
+              level: formData.selectedSubjects[subjectData.id]?.level ?? null
+            };
+            
+            return (
+              <SubjectCard
+                key={subject.id}
+                subject={subject}
+                selected={formData.selectedSubjects[subject.id]}
+                onSelect={(level?: 'HL' | 'SL') => {
+                  const newSubjects = { ...formData.selectedSubjects };
+                  
+                  if (!newSubjects[subject.id]) {
+                    newSubjects[subject.id] = { ...subject, level: null };
+                  } else if (level) {
+                    newSubjects[subject.id] = { ...subject, level };
+                  } else {
+                    delete newSubjects[subject.id];
+                  }
+
+                  setFormData({
+                    ...formData,
+                    selectedSubjects: newSubjects
+                  });
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Group requirements */}
+        <div className="text-sm text-gray-500 bg-gray-50 p-4 rounded-xl">
+          {error ? (
+            <p className="text-red-600">{error}</p>
+          ) : (
+            <>
+              {group === 1 && "Select at least one Language & Literature subject"}
+              {group === 2 && "Select at least one Language Acquisition subject"}
+              {group === 5 && "Mathematics is required - select one option"}
+              {group !== 1 && group !== 2 && group !== 5 && 
+               "Select any subjects you wish to study from this group"}
+            </>
+          )}
+        </div>
+      </motion.div>
+    );
+  };
+
+  const renderReviewStep = () => (
+    <motion.div
+      key="review"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="space-y-6"
+    >
+      {Object.entries(GROUP_NAMES).map(([groupNum, groupName]) => {
+        const groupSubjects = Object.values(formData.selectedSubjects)
+          .filter(s => s.group === parseInt(groupNum));
         
-        <p className="mt-2 text-center text-sm text-gray-600 font-serif">
-          {isSignUp ? 'Start your mathematical journey' : 'Continue your mathematical journey'}
+        if (groupSubjects.length === 0) return null;
+        
+        return (
+          <div key={groupNum} className="space-y-4">
+            <h3 className="font-medium text-gray-700">
+              Group {groupNum}: {groupName}
+            </h3>
+            <div className="grid grid-cols-1 gap-4">
+              {groupSubjects.map(subject => (
+                <SubjectCard
+                  key={subject.id}
+                  subject={subject}
+                  selected={subject}
+                  onSelect={(level?: 'HL' | 'SL') => {
+                    if (!level) return;
+                    const newSubjects = { ...formData.selectedSubjects };
+                    newSubjects[subject.id] = { ...subject, level };
+                    setFormData({
+                      ...formData,
+                      selectedSubjects: newSubjects
+                    });
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Summary */}
+      <div className="bg-blue-50 p-4 rounded-xl">
+        <h3 className="font-medium text-blue-800 mb-2">Subject Level Summary</h3>
+        <p className="text-blue-600">
+          HL Subjects: {Object.values(formData.selectedSubjects).filter(s => s.level === 'HL').length}/3
+          <br />
+          SL Subjects: {Object.values(formData.selectedSubjects).filter(s => s.level === 'SL').length}/3
         </p>
+      </div>
+    </motion.div>
+  );
 
-        {error && (
-          <div className="bg-red-50 text-red-800 p-4 rounded-lg border border-red-200 font-serif">
-            {error}
+  const renderStep = () => {
+    if (step === 1) {
+      return (
+        <motion.div
+          key="account"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="space-y-4"
+        >
+          <input
+            type="email"
+            value={formData.email}
+            onChange={e => setFormData({...formData, email: e.target.value})}
+            placeholder="Email address"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200
+                     bg-white/50 backdrop-blur-sm transition-all duration-200
+                     focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <input
+            type="password"
+            value={formData.password}
+            onChange={e => setFormData({...formData, password: e.target.value})}
+            placeholder="Password"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200
+                     bg-white/50 backdrop-blur-sm transition-all duration-200
+                     focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </motion.div>
+      );
+    }
+
+    if (step === 2) {
+      return (
+        <motion.div
+          key="personal"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="space-y-4"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <input
+              type="text"
+              value={formData.firstName}
+              onChange={e => setFormData({...formData, firstName: e.target.value})}
+              placeholder="First name"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200
+                       bg-white/50 backdrop-blur-sm transition-all duration-200
+                       focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <input
+              type="text"
+              value={formData.lastName}
+              onChange={e => setFormData({...formData, lastName: e.target.value})}
+              placeholder="Last name"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200
+                       bg-white/50 backdrop-blur-sm transition-all duration-200
+                       focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
-        )}
+          <input
+            type="text"
+            value={formData.school}
+            onChange={e => setFormData({...formData, school: e.target.value})}
+            placeholder="School name"
+            className="w-full px-4 py-3 rounded-xl border border-gray-200
+                     bg-white/50 backdrop-blur-sm transition-all duration-200
+                     focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </motion.div>
+      );
+    }
 
-        {message && (
-          <div className="bg-green-50 text-green-800 p-4 rounded-lg border border-green-200 font-serif">
-            {message}
+    if (step === 9) {
+      return renderReviewStep();
+    }
+
+    // Subject selection steps
+    const group = (step - 2) as GroupNumber;
+    return renderSubjectsForGroup(group);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="max-w-2xl mx-auto pt-20 px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl p-8"
+        >
+          {/* Progress bar */}
+          <div className="flex justify-between mb-8">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((stepNum) => (
+              <motion.div
+                key={stepNum}
+                className={`h-2 rounded-full mx-1 flex-1
+                  ${stepNum <= step ? 'bg-blue-500' : 'bg-gray-200'}`}
+                initial={{ scaleX: 0 }}
+                animate={{ 
+                  scaleX: 1,
+                  backgroundColor: stepNum <= step ? 'rgb(59, 130, 246)' : 'rgb(229, 231, 235)'
+                }}
+                transition={{ duration: 0.5, delay: stepNum * 0.1 }}
+              />
+            ))}
           </div>
-        )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleAuth}>
-          {(!isSignUp || (isSignUp && currentStep === 1)) && (
-            <div className="rounded-md shadow-sm space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-serif text-gray-700">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 appearance-none relative block w-full px-3 py-3 border 
-                           border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-black focus:border-black
-                           focus:z-10 sm:text-sm font-serif"
-                  placeholder="you@example.com"
-                />
-              </div>
-              <div>
-                <label htmlFor="password" className="block text-sm font-serif text-gray-700">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 appearance-none relative block w-full px-3 py-3 border
-                           border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg
-                           focus:outline-none focus:ring-2 focus:ring-black focus:border-black
-                           focus:z-10 sm:text-sm font-serif"
-                  placeholder="Password (min. 6 characters)"
-                />
-              </div>
-            </div>
-          )}
-
-          {isSignUp && currentStep === 2 && (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="age" className="block text-sm font-serif text-gray-700">
-                  Age
-                </label>
-                <input
-                  id="age"
-                  type="number"
-                  required
-                  value={studentInfo.age}
-                  onChange={(e) => setStudentInfo(prev => ({...prev, age: e.target.value}))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg font-serif"
-                  min="10"
-                  max="100"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="mathCourse" className="block text-sm font-serif text-gray-700">
-                  Math Course
-                </label>
-                <select
-                  id="mathCourse"
-                  required
-                  value={studentInfo.mathCourse}
-                  onChange={(e) => setStudentInfo(prev => ({...prev, mathCourse: e.target.value}))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg font-serif"
-                >
-                  <option value="">Select Math Course</option>
-                  {mathCourseOptions.map(option => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="school" className="block text-sm font-serif text-gray-700">
-                  School
-                </label>
-                <input
-                  id="school"
-                  type="text"
-                  required
-                  value={studentInfo.school}
-                  onChange={(e) => setStudentInfo(prev => ({...prev, school: e.target.value}))}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg font-serif"
-                  placeholder="Your school name"
-                />
-              </div>
-            </div>
-          )}
-
-          <div>
-            {isSignUp && currentStep === 1 ? (
-              <button
-                type="button"
-                onClick={handleNextStep}
-                className="w-full flex justify-center py-3 px-4 border border-transparent
-                         text-sm font-medium rounded-lg text-white bg-black hover:bg-gray-900
-                         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black
-                         transition-all duration-200 ease-in-out font-serif"
+          {/* Step title and description */}
+          <div className="text-center mb-8">
+            <motion.h2
+              key={`title-${step}`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-2xl font-bold text-gray-900"
               >
-                Next
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={loading}
-                className="group relative w-full flex justify-center py-3 px-4 border border-transparent
-                         text-sm font-medium rounded-lg text-white bg-black hover:bg-gray-900
-                         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black
-                         transition-all duration-200 ease-in-out font-serif disabled:opacity-50
-                         disabled:cursor-not-allowed"
+              {step === 1 ? "Create your account" :
+               step === 2 ? "Personal information" :
+               step === 9 ? "Review your selections" :
+               `Select your ${GROUP_NAMES[(step - 2) as GroupNumber]} subjects`}
+            </motion.h2>
+            <motion.p
+              key={`desc-${step}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-gray-500 mt-2"
+            >
+              {step === 1 ? "Get started with your email and password" :
+               step === 2 ? "Tell us a bit about yourself" :
+               step === 9 ? "Review and finalize your subject choices" :
+               "Choose your subjects and their levels"}
+            </motion.p>
+          </div>
+
+          {/* Error message */}
+          <AnimatePresence mode="wait">
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-6 p-4 bg-red-50 rounded-xl flex items-center justify-between"
               >
-                {loading ? (
-                  <span className="absolute left-0 inset-y-0 flex items-center pl-3">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                  </span>
-                ) : (
-                  isSignUp ? 'Create Account' : 'Sign In'
-                )}
-              </button>
+                <span className="text-red-600">{error}</span>
+                <button onClick={() => setError(null)}>
+                  <X className="w-5 h-5 text-red-500" />
+                </button>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
 
-          {isSignUp && currentStep === 2 && (
-            <button
-              type="button"
-              onClick={() => setCurrentStep(1)}
-              className="mt-2 w-full text-sm text-gray-600 hover:text-gray-900 font-serif"
-            >
-              Back to previous step
-            </button>
-          )}
+          {/* Step content */}
+          <AnimatePresence mode="wait">
+            {renderStep()}
+          </AnimatePresence>
 
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setCurrentStep(1);
-                setError(null);
-              }}
-              className="font-serif text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200"
+          {/* Navigation */}
+          <div className="flex gap-4 mt-8">
+            {step > 1 && (
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setStep(s => s - 1);
+                  setError(null);
+                }}
+                className="flex-1 px-6 py-3 rounded-xl bg-gray-100
+                         hover:bg-gray-200 transition-colors text-gray-700
+                         flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back
+              </motion.button>
+            )}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleNext}
+              disabled={loading}
+              className="flex-1 px-6 py-3 rounded-xl bg-blue-600
+                       hover:bg-blue-700 transition-colors text-white
+                       disabled:opacity-50 disabled:cursor-not-allowed
+                       flex items-center justify-center gap-2"
             >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
+              {loading ? (
+                'Processing...'
+              ) : (
+                <>
+                  {step === 9 ? 'Complete Setup' : 'Continue'}
+                  {step < 9 && <ChevronRight className="w-5 h-5" />}
+                </>
+              )}
+            </motion.button>
           </div>
-        </form>
+        </motion.div>
+
+        {/* Sign in link */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center mt-6 text-gray-500"
+        >
+          Already have an account?{' '}
+          <button
+            onClick={() => navigate('/login')}
+            className="text-blue-600 hover:text-blue-700 transition-colors"
+          >
+            Sign in
+          </button>
+        </motion.p>
       </div>
     </div>
   );

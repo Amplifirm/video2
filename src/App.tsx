@@ -1,4 +1,3 @@
-// src/App.tsx
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import WelcomeScreen from './pages/WelcomePage';
@@ -45,11 +44,28 @@ export default function App() {
             </ProtectedRoute>
           } 
         />
-<Route path="/initial" element={<ProtectedRoute><InitialAssessment /></ProtectedRoute>} />
-<Route path="/profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
         
         <Route 
-          path="/practice" 
+          path="/initial" 
+          element={
+            <ProtectedRoute>
+              <InitialAssessment />
+            </ProtectedRoute>
+          } 
+        />
+        
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <EditProfile />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Updated practice routes */}
+        <Route 
+          path="/practice/:subjectId" 
           element={
             <ProtectedRoute>
               <PracticePage />

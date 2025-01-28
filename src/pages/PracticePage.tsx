@@ -1,48 +1,450 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bot, HelpCircle, RefreshCw, BookOpen } from 'lucide-react';
-import { useUserProgress } from '../hooks/useUserProgress';
-import { generateQuestion, checkStep, getExplanation, getSolution } from '../lib/claude'
-import { 
-    Question, 
-    StepCheck, 
-    StepExplanation, 
-    Solution
-  } from '../types/practice';;
-  import SolutionDisplay from '../components/SolutionDisplay';
-
-import { 
-  ChevronRight, X, Sparkles,
-} from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ArrowLeft,
+  Bot, 
+  HelpCircle, 
+  RefreshCw, 
+  BookOpen,
+  ChevronRight,
+  X,
+  Sparkles,
+  Brain, 
+  Calculator,
+  CheckCircle2,
+  AlertCircle,
+  Code,
+  Beaker,
+  Microscope,
+  LineChart,
+  Building2
+} from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
-const PracticePage = () => {
+import { generateQuestion, checkStep, getExplanation, getSolution } from '../lib/claude';
+import { useUserProgress } from '../hooks/useUserProgress';
+import type { 
+  Question,
+  StepCheck,
+  StepExplanation,
+  Solution,
+  EditorProps,
+  ClaudeQuestionResponse,
+  ClaudeAnswerResponse,
+  ClaudeSolutionResponse,
+} from '../types/practice';
+
+interface SubjectInfo {
+  serverId: string;
+  displayName: string;
+}
+
+
+type ServerSubject = 
+  | 'mathematics_aa' 
+  | 'mathematics_ai' 
+  | 'physics_hl' 
+  | 'physics_sl' 
+  | 'chemistry_hl' 
+  | 'chemistry_sl' 
+  | 'biology_hl' 
+  | 'biology_sl' 
+  | 'economics_hl' 
+  | 'economics_sl' 
+  | 'business_hl' 
+  | 'business_sl' 
+  | 'computer_science_hl' 
+  | 'computer_science_sl';
+
+// Subject Config Types
+interface SubjectConfig {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  themes: string;
+  validator: (input: string) => boolean;
+  answerFormat: 'calculation' | 'essay' | 'code' | 'mixed';
+  showStepNumbers: boolean;
+}
+
+
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
+
+// Basic editor component for now - you can replace with actual implementations later
+const Editor: React.FC<EditorProps> = ({
+  value,
+  onChange,
+  onKeyDown,
+  placeholder,
+  className,
+  readOnly
+}) => {
+  return (
+    <textarea
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder}
+      className={className}
+      readOnly={readOnly}
+    />
+  );
+};
+
+const SUBJECT_CONFIGS: Record<string, SubjectConfig> = {
+  mathematics_aa: {
+    icon: Calculator,
+    title: "Mathematics AA",
+    description: "Practice mathematical concepts step by step",
+    themes: "from-blue-500 to-indigo-500",
+    validator: (input: string): boolean => input.includes('=') || input.includes(';'),
+    answerFormat: 'calculation',
+    showStepNumbers: true
+  },
+  mathematics_ai: {
+    icon: Calculator,
+    title: "Mathematics AI",
+    description: "Practice applications and interpretations",
+    themes: "from-blue-500 to-indigo-500",
+    validator: (input: string): boolean => input.includes('=') || input.includes(';'),
+    answerFormat: 'calculation',
+    showStepNumbers: true
+  },
+  physics_hl: {
+    icon: Brain,
+    title: "Physics HL",
+    description: "Master physics problems and concepts",
+    themes: "from-purple-500 to-pink-500",
+    validator: (input: string): boolean => input.includes('=') || input.includes('N'),
+    answerFormat: 'calculation',
+    showStepNumbers: true
+  },
+  physics_sl: {
+    icon: Brain,
+    title: "Physics SL",
+    description: "Master physics problems and concepts",
+    themes: "from-purple-500 to-pink-500",
+    validator: (input: string): boolean => input.includes('=') || input.includes('N'),
+    answerFormat: 'calculation',
+    showStepNumbers: true
+  },
+  chemistry_hl: {
+    icon: Beaker,
+    title: "Chemistry HL",
+    description: "Practice chemical reactions and calculations",
+    themes: "from-green-500 to-emerald-500",
+    validator: (input: string): boolean => input.includes('→') || input.includes('='),
+    answerFormat: 'mixed',
+    showStepNumbers: true
+  },
+  chemistry_sl: {
+    icon: Beaker,
+    title: "Chemistry SL",
+    description: "Practice chemical reactions and calculations",
+    themes: "from-green-500 to-emerald-500",
+    validator: (input: string): boolean => input.includes('→') || input.includes('='),
+    answerFormat: 'mixed',
+    showStepNumbers: true
+  },
+  biology_hl: {
+    icon: Microscope,
+    title: "Biology HL",
+    description: "Study biological processes and systems",
+    themes: "from-amber-500 to-orange-500",
+    validator: (input: string): boolean => input.length > 50,
+    answerFormat: 'essay',
+    showStepNumbers: false
+  },
+  biology_sl: {
+    icon: Microscope,
+    title: "Biology SL",
+    description: "Study biological processes and systems",
+    themes: "from-amber-500 to-orange-500",
+    validator: (input: string): boolean => input.length > 50,
+    answerFormat: 'essay',
+    showStepNumbers: false
+  },
+  economics_hl: {
+    icon: LineChart,
+    title: "Economics HL",
+    description: "Analyze economic concepts and theories",
+    themes: "from-red-500 to-rose-500",
+    validator: (input: string): boolean => input.length > 100,
+    answerFormat: 'essay',
+    showStepNumbers: false
+  },
+  economics_sl: {
+    icon: LineChart,
+    title: "Economics SL",
+    description: "Analyze economic concepts and theories",
+    themes: "from-red-500 to-rose-500",
+    validator: (input: string): boolean => input.length > 100,
+    answerFormat: 'essay',
+    showStepNumbers: false
+  },
+  business_hl: {
+    icon: Building2,
+    title: "Business Management HL",
+    description: "Analyze business cases and strategies",
+    themes: "from-teal-500 to-cyan-500",
+    validator: (input: string): boolean => input.length > 100,
+    answerFormat: 'essay',
+    showStepNumbers: false
+  },
+  business_sl: {
+    icon: Building2,
+    title: "Business Management SL",
+    description: "Analyze business cases and strategies",
+    themes: "from-teal-500 to-cyan-500",
+    validator: (input: string): boolean => input.length > 100,
+    answerFormat: 'essay',
+    showStepNumbers: false
+  },
+  computer_science_hl: {
+    icon: Code,
+    title: "Computer Science HL",
+    description: "Practice programming and algorithms",
+    themes: "from-violet-500 to-purple-500",
+    validator: (input: string): boolean => input.includes('{') || input.includes('function'),
+    answerFormat: 'code',
+    showStepNumbers: true
+  },
+  computer_science_sl: {
+    icon: Code,
+    title: "Computer Science SL",
+    description: "Practice programming and algorithms",
+    themes: "from-violet-500 to-purple-500",
+    validator: (input: string): boolean => input.includes('{') || input.includes('function'),
+    answerFormat: 'code',
+    showStepNumbers: true
+  }
+};
+
+const PracticePage: React.FC = () => {
   const navigate = useNavigate();
-  const { profile} = useUserProgress();
+  const { profile } = useUserProgress();
+  const location = useLocation();
+  const { subjectId } = useParams();
+  const [courseInfo, setCourseInfo] = useState<{subject: string, course: string} | null>(null);
   
-  // Basic states
-  const [input, setInput] = useState('');
+  // Basic states with proper types
+  const [input, setInput] = useState<string>('');
   const [question, setQuestion] = useState<Question | null>(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [stepAnswers, setStepAnswers] = useState<string[]>([]);
   const [stepChecks, setStepChecks] = useState<StepCheck[]>([]);
   const [explanation, setExplanation] = useState<StepExplanation | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
   // Enhanced features states
   const [score, setScore] = useState<number>(100);
   const [attemptCounts, setAttemptCounts] = useState<number[]>([]);
   const [showingSolutions, setShowingSolutions] = useState<boolean[]>([]);
-  const [solutions, setSolutions] = useState<(Solution | null)[]>([]);
-  const [courseSuggestions, setCourseSuggestions] = useState<string[]>([]);
+  const [solutions, setSolutions] = useState<(Solution | null | undefined)[]>([]);
   const [currentDifficulty, setCurrentDifficulty] = useState<number>(5);
+  const [systemError, setSystemError] = useState<string | null>(null);
+  const [subjectDisplay, setSubjectDisplay] = useState<string>("");
+
+  const getSubjectDisplayInfo = (
+    clientSubject: string, 
+    course: string
+  ): SubjectInfo => {
+    // Extract HL/SL from the course string
+    const level = course.includes('HL') ? 'HL' : 'SL';
+    
+    // Subject display name mapping
+    const subjectDisplayNames: Record<string, string> = {
+      'mathematics_aa': `Mathematics AA ${level}`,
+      'mathematics_ai': `Mathematics AI ${level}`,
+      'physics': `Physics ${level}`,
+      'chemistry': `Chemistry ${level}`,
+      'biology': `Biology ${level}`,
+      'economics': `Economics ${level}`,
+      'business_management': `Business Management ${level}`,
+      'computer_science': `Computer Science ${level}`
+    };
+  
+    // Get the server ID as before
+    const serverId = getServerSubjectId(clientSubject, course);
+    
+    // Get display name (with fallback)
+    const baseSubject = clientSubject.split('_')[0];
+    const displayName = subjectDisplayNames[baseSubject] || course;
+  
+    return {
+      serverId,
+      displayName
+    };
+  };
 
 
+  const getServerSubjectId = (clientSubject: string, course: string): ServerSubject => {
+    // Extract HL/SL from the course string
+    const level = course.includes('HL') ? 'hl' : 'sl';
+    
+    // Handle special cases and format conversions
+    const subjectMapping: Record<string, string> = {
+      'mathematics_aa_hl': 'mathematics_aa',
+      'mathematics_aa_sl': 'mathematics_aa',
+      'mathematics_ai_hl': 'mathematics_ai',
+      'mathematics_ai_sl': 'mathematics_ai',
+      'business_management': 'business',
+      'computer_science': 'computer_science'
+    };
+  
+    // First try the direct mapping
+    const mappedSubject = subjectMapping[clientSubject];
+    if (mappedSubject) {
+      // For mathematics, return as is
+      if (mappedSubject.startsWith('mathematics')) {
+        return mappedSubject as ServerSubject;
+      }
+      // For others, append the level
+      return `${mappedSubject}_${level}` as ServerSubject;
+    }
+  
+    // If no mapping found, try to format it directly
+    if (clientSubject.includes('_hl') || clientSubject.includes('_sl')) {
+      return clientSubject as ServerSubject;
+    }
+  
+    // Default case: append level
+    return `${clientSubject}_${level}` as ServerSubject;
+  };
+  
 
-  const moveToNewQuestion = () => {
-    // Reset question-related state
-    setQuestion(null);
+  const subjectConfig = SUBJECT_CONFIGS[subjectId || 'mathematics_aa'] || SUBJECT_CONFIGS.mathematics_aa;
+
+  // Add this after your state declarations
+useEffect(() => {
+  const state = location.state as { subject: string; course: string } | null;
+  if (state) {
+    setCourseInfo(state);
+  }
+}, [location]);
+
+useEffect(() => {
+  if (courseInfo?.course) {
+    const { displayName } = getSubjectDisplayInfo(
+      subjectId || 'mathematics_aa',
+      courseInfo.course
+    );
+    setSubjectDisplay(displayName);
+  }
+}, [subjectId, courseInfo]);
+
+
+  // Get subject-specific suggestions
+  const getSubjectSuggestions = (): string[] => {
+    const suggestions: Record<string, string[]> = {
+      mathematics_aa: [  // Updated from 'math'
+        'Calculus: Integration',
+        'Vectors: Cross Product',
+        'Statistics: Normal Distribution',
+        'Complex Numbers'
+      ],
+      physics: [
+        'Mechanics: Forces',
+        'Thermodynamics',
+        'Wave Motion',
+        'Electricity'
+      ],
+      chemistry: [
+        'Organic Chemistry',
+        'Thermochemistry',
+        'Equilibrium',
+        'Redox'
+      ],
+      biology: [
+        'Cell Biology',
+        'Genetics',
+        'Ecology',
+        'Evolution'
+      ],
+      economics: [
+        'Supply and Demand',
+        'Market Structures',
+        'International Trade',
+        'Development'
+      ],
+      business: [
+        'Marketing',
+        'Human Resources',
+        'Finance',
+        'Operations'
+      ],
+      computer_science: [
+        'Algorithms',
+        'Data Structures',
+        'Object-Oriented Programming',
+        'Databases'
+      ]
+    };
+    return suggestions[subjectId || 'mathematics_aa'] || suggestions.mathematics_aa;
+  };
+
+  // Handle keyboard shortcuts
+  const handleKeyPress = async (e: React.KeyboardEvent): Promise<void> => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (subjectConfig.answerFormat === 'essay' && input.length < 100) {
+        setError('Essays should be at least 100 words long');
+        return;
+      }
+      await submitResponse();
+    }
+  };
+
+  // Generate a similar question
+  const generateSimilarQuestion = async (): Promise<void> => {
+    if (!question || !profile) return;
+    setLoading(true);
+    
+    try {
+      // Update this section in submitResponse
+const response: ClaudeQuestionResponse = await generateQuestion(
+  input,
+  {
+    ...profile,
+    subject: subjectId || 'math',
+    course: courseInfo?.course || `IB ${subjectConfig.title} HL` // Add this line
+  }
+);
+      
+      if (response.error) {
+        setError(response.error);
+      } else if (response.question && response.details) {
+        setQuestion({
+          content: response.question,
+          details: response.details
+        });
+        resetPracticeState();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate similar question');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset practice state
+  const resetPracticeState = (): void => {
     setInput('');
     setCurrentStep(0);
     setStepAnswers([]);
@@ -52,219 +454,127 @@ const PracticePage = () => {
     setSolutions([]);
     setExplanation(null);
     setError(null);
-    // Note: We're not resetting score or currentDifficulty
   };
 
-  // Get course-specific topic suggestions
-  const getCourseSuggestions = (mathCourse: string) => {
-    const suggestions = {
-      'IB Math AA HL': [
-        'Calculus: Implicit Differentiation',
-        'Complex Numbers: De Moivre\'s Theorem',
-        'Vectors: Triple Vector Product',
-        'Series: Maclaurin Series',
-        'Integration: Integration by Parts'
-      ],
-      'IB Math AA SL': [
-        'Calculus: Chain Rule',
-        'Functions: Domain and Range',
-        'Trigonometry: Double Angle Formulas',
-        'Statistics: Normal Distribution',
-        'Vectors: Dot Product'
-      ],
-      'IB Math AI HL': [
-        'Statistics: Chi-Square Test',
-        'Financial Math: Compound Interest',
-        'Calculus: Kinematics',
-        'Geometry: 3D Shapes',
-        'Matrices: Transformations'
-      ],
-      'IB Math AI SL': [
-        'Functions: Quadratic Models',
-        'Statistics: Correlation',
-        'Geometry: Sine and Cosine Rules',
-        'Calculus: Basic Integration',
-        'Probability: Tree Diagrams'
-      ]
-    };
-
-    return suggestions[mathCourse as keyof typeof suggestions] || [];
-  };
-
-  // Update suggestions when profile loads
-  useEffect(() => {
-    if (profile?.math_course) {
-      setCourseSuggestions(getCourseSuggestions(profile.math_course));
-    }
-  }, [profile?.math_course]);
-
-  // Handle keyboard shortcuts
-  const handleKeyPress = async (e: React.KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      await submitResponse();
-    }
+  // Reset entire practice session
+  const resetPractice = (): void => {
+    setQuestion(null);
+    resetPracticeState();
+    setScore(100);
+    setCurrentDifficulty(5);
+    setError(null);
   };
 
   // Show solution for a step
-  const showSolution = async (stepIndex: number) => {
+  const showSolution = async (stepIndex: number): Promise<void> => {
     if (!question || !profile) return;
     setLoading(true);
-    
+    setError(null); // Clear any existing errors
+
     try {
-      const response = await getSolution(
-        question.content,
-        question.details.expectedSteps[stepIndex],
-        profile,
-        stepIndex
-      );
-      
-      console.log('Solution response for step', stepIndex, ':', response);
-      
-      if (response.error) {
-        setError(response.error);
-        return;
-      }
-  
-      if (response.solution) {
-        // Update only the specific step's solution
+        const subject = getServerSubjectId(
+            subjectId || 'mathematics_aa',
+            courseInfo?.course || `IB ${subjectConfig.title} HL`
+        );
+
+        // Attempt to get solution from API
+        const response: ClaudeSolutionResponse = await getSolution(
+            question.content,
+            question.details.expectedSteps[stepIndex],
+            {
+                ...profile,
+                subject,
+                course: courseInfo?.course || `IB ${subjectConfig.title} HL`
+            },
+            stepIndex
+        );
+
+        // Handle API errors
+        if (response.error) {
+            setError('Cannot load solution at this time. Please try using hints instead.');
+            return;
+        }
+
+        // Validate solution data
+        const solutionData = response.solution;
+        if (!solutionData || !solutionData.solution) {
+            setError('No solution available for this step. Try breaking it down into smaller parts.');
+            setShowingSolutions(prev => {
+                const updated = [...prev];
+                updated[stepIndex] = false;
+                return updated;
+            });
+            return;
+        }
+
+        // Update solution visibility
         setShowingSolutions(prev => {
-          const updated = [...prev];
-          updated[stepIndex] = true;
-          return updated;
+            const updated = [...prev];
+            updated[stepIndex] = true;
+            return updated;
         });
         
+        // Update solutions with proper fallbacks
         setSolutions(prev => {
-          const updated = [...prev];
-          // Explicitly handle the type by setting to null if undefined
-          updated[stepIndex] = response.solution || null;
-          return updated;
+            const updated = [...prev];
+            updated[stepIndex] = {
+                solution: {
+                    explanation: solutionData.solution.explanation || 
+                        'Try breaking this step down into smaller parts and attempt each one separately.',
+                    working: solutionData.solution.working || 
+                        'Solution details not available. Consider using the hint feature for guidance.',
+                    tips: solutionData.solution.tips?.length ? 
+                        solutionData.solution.tips : 
+                        [
+                            'Review the relevant formulas and concepts',
+                            'Break down the problem into smaller steps',
+                            'Check your work carefully'
+                        ]
+                }
+            };
+            return updated;
         });
-  
+
+        // Update score and difficulty
         setScore(prevScore => Math.max(0, prevScore - 15));
         setCurrentDifficulty(prev => Math.max(1, prev - 1));
-        
-        console.log('Updated solution for step', stepIndex);
-      }
+
     } catch (err) {
-      console.error('Solution error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to get solution');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Submit response handler
-  const submitResponse = async () => {
-    if (!profile || !input.trim()) return;
-    setError(null);
-    setLoading(true);
-    setExplanation(null);
-
-    try {
-      if (!question) {
-        // Generate new question
-        const response = await generateQuestion(input, profile);
-        
-        if (response.error) {
-          setError(response.error);
-          return;
-        }
-        
-        if (response.question && response.details) {
-          setQuestion({
-            content: response.question,
-            details: response.details
-          });
-          setInput('');
-          setCurrentStep(0);
-          setStepAnswers([]);
-          setStepChecks([]);
-          setAttemptCounts(new Array(response.details.expectedSteps.length).fill(3));
-          setShowingSolutions(new Array(response.details.expectedSteps.length).fill(false));
-          setSolutions(new Array(response.details.expectedSteps.length).fill(null));
-          setCurrentDifficulty(5);
-        }
-      } else {
-        // Check answer for current step
-        const isSkippingSteps = input.includes('=') || input.includes(';') || 
-                               input.includes('\n') || input.length > 50;
-
-        const response = await checkStep(
-          question.content,
-          currentStep,
-          input,
-          profile,
-          isSkippingSteps
+        console.error('Solution retrieval error:', err);
+        setError(
+            err instanceof Error && err.message.includes('Invalid subject') 
+                ? 'This subject is not yet supported for solutions. Please try another subject.' 
+                : 'Unable to load solution. Please try again or use hints.'
         );
         
-        if (response.error) {
-          setError(response.error);
-          return;
-        }
-        
-        if (response.stepCheck) {
-          const { isCorrect, canContinue, skippedSteps } = response.stepCheck;
-
-          // Update attempts count if incorrect
-          if (!isCorrect) {
-            const newAttemptCounts = [...attemptCounts];
-            newAttemptCounts[currentStep] = Math.max(0, (newAttemptCounts[currentStep] || 3) - 1);
-            setAttemptCounts(newAttemptCounts);
-            setCurrentDifficulty(prev => Math.max(1, prev - 0.2));
-          }
-
-          if (isCorrect) {
-            // Handle correct answer
-            const newStepAnswers = [...stepAnswers];
-            newStepAnswers[currentStep] = input;
-            setStepAnswers(newStepAnswers);
-            
-            const newStepChecks = [...stepChecks];
-            newStepChecks[currentStep] = response.stepCheck;
-            setStepChecks(newStepChecks);
-
-            // Success message
-            setError("Correct! Well done!");
-            setTimeout(() => setError(null), 2000);
-
-            if (canContinue) {
-              // Handle step skipping
-              const stepsToAdvance = skippedSteps || 1;
-              if (currentStep + stepsToAdvance < question.details.expectedSteps.length) {
-                setCurrentStep(curr => curr + stepsToAdvance);
-                setInput('');
-                setCurrentDifficulty(prev => Math.min(10, prev + 0.5));
-              }
-            }
-          } else {
-            // Handle incorrect answer
-            if (attemptCounts[currentStep] > 0) {
-              setError("Not quite right - try again!");
-            } else {
-              setError("Would you like to see the solution?");
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Submit response error:', err);
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+        // Reset solution visibility on error
+        setShowingSolutions(prev => {
+            const updated = [...prev];
+            updated[stepIndex] = false;
+            return updated;
+        });
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+};
 
   // Request hint
-  const requestHint = async () => {
+  const requestHint = async (): Promise<void> => {
     if (!question || !profile) return;
     setLoading(true);
     
     try {
-      const response = await getExplanation(
+      const response: ClaudeAnswerResponse = await getExplanation(
         question.content,
         question.details.expectedSteps[currentStep],
-        profile
+        {
+          ...profile,
+          subject: getServerSubjectId(
+            subjectId || 'mathematics_aa',
+            courseInfo?.course || `IB ${subjectConfig.title} HL`
+          ),
+          course: courseInfo?.course || `IB ${subjectConfig.title} HL`
+        }
       );
       
       if (response.error) {
@@ -278,85 +588,153 @@ const PracticePage = () => {
     } finally {
       setLoading(false);
     }
+};
+
+  // Handle step check
+  const handleStepCheck = (stepCheck: StepCheck): void => {
+    const { isCorrect, canContinue, skippedSteps } = stepCheck;
+
+    if (!isCorrect) {
+      const newAttemptCounts = [...attemptCounts];
+      newAttemptCounts[currentStep] = Math.max(0, (newAttemptCounts[currentStep] || 3) - 1);
+      setAttemptCounts(newAttemptCounts);
+      setCurrentDifficulty(prev => Math.max(1, prev - 0.2));
+    }
+
+    if (isCorrect) {
+      const newStepAnswers = [...stepAnswers];
+      newStepAnswers[currentStep] = input;
+      setStepAnswers(newStepAnswers);
+      
+      const newStepChecks = [...stepChecks];
+      newStepChecks[currentStep] = stepCheck;
+      setStepChecks(newStepChecks);
+
+      setError("✨ Correct! Well done!");
+      setTimeout(() => setError(null), 2000);
+
+      if (canContinue) {
+        const stepsToAdvance = skippedSteps || 1;
+        if (currentStep + stepsToAdvance < (question?.details.expectedSteps.length || 0)) {
+          setCurrentStep(curr => curr + stepsToAdvance);
+          setInput('');
+          setCurrentDifficulty(prev => Math.min(10, prev + 0.5));
+        }
+      }
+    } else {
+      if (attemptCounts[currentStep] > 0) {
+        setError("Not quite right - try again!");
+      } else {
+        setError("Would you like to see the solution?");
+      }
+    }
   };
 
-  // Generate similar question
-  const generateSimilarQuestion = async () => {
-    if (!question || !profile) return;
+  // Submit response
+  const submitResponse = async (): Promise<void> => {
+    if (!profile || !input.trim()) return;
+    setError(null);
     setLoading(true);
-    
+    setExplanation(null);
+  
     try {
-      const response = await generateQuestion(
-        question.details.topic,
-        {
-          ...profile,
-          skillLevel: currentDifficulty
-        },
-        question.content
-      );
-      
-      if (response.error) {
-        setError(response.error);
-      } else if (response.question && response.details) {
-        setQuestion({
-          content: response.question,
-          details: response.details
-        });
-        setInput('');
-        setCurrentStep(0);
-        setStepAnswers([]);
-        setStepChecks([]);
-        setAttemptCounts(new Array(response.details.expectedSteps.length).fill(3));
-        setShowingSolutions(new Array(response.details.expectedSteps.length).fill(false));
-        setSolutions(new Array(response.details.expectedSteps.length).fill(null));
-        setExplanation(null);
+      if (!question) {
+        // Generate new question
+        try {
+          const subject = getServerSubjectId(
+            subjectId || 'mathematics_aa',
+            courseInfo?.course || `IB ${subjectConfig.title} HL`
+          );
+  
+          const response: ClaudeQuestionResponse = await generateQuestion(
+            input,
+            {
+              ...profile,
+              subject,
+              course: courseInfo?.course || `IB ${subjectConfig.title} HL`
+            }
+          );
+  
+          if (response.error) {
+            setError(response.error);
+            return;
+          }
+  
+          if (response.question && response.details) {
+            setQuestion({
+              content: response.question,
+              details: {
+                ...response.details,
+                subjectSpecific: {}
+              }
+            });
+            resetPracticeState();
+            setAttemptCounts(new Array(response.details.expectedSteps.length).fill(3));
+            setShowingSolutions(new Array(response.details.expectedSteps.length).fill(false));
+            setSolutions(new Array(response.details.expectedSteps.length).fill(null));
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.includes('Invalid subject')) {
+            setSystemError('This subject is not yet supported. Please try another subject.');
+          } else {
+            setSystemError('An error occurred while generating the question. Please try again.');
+          }
+          console.error('Generate question error:', err);
+          return;
+        }
+      } else {
+        // Check answer for current step
+        try {
+          const subject = getServerSubjectId(
+            subjectId || 'mathematics_aa',
+            courseInfo?.course || `IB ${subjectConfig.title} HL`
+          );
+  
+          const response: ClaudeAnswerResponse = await checkStep(
+            question.content,
+            currentStep,
+            input,
+            {
+              ...profile,
+              subject,
+              course: courseInfo?.course || `IB ${subjectConfig.title} HL`
+            }
+          );
+  
+          if (response.error) {
+            setError(response.error);
+            return;
+          }
+  
+          if (response.stepCheck) {
+            handleStepCheck(response.stepCheck);
+          }
+        } catch (err) {
+          if (err instanceof Error && err.message.includes('Invalid subject')) {
+            setSystemError('This subject is not yet supported. Please try another subject.');
+          } else {
+            setSystemError('An error occurred checking your answer. Please try again.');
+          }
+          console.error('Check step error:', err);
+          return;
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate similar question');
+      console.error('Submit response error:', err);
+      setSystemError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Reset practice session
-  const resetPractice = () => {
-    setQuestion(null);
-    setInput('');
-    setCurrentStep(0);
-    setStepAnswers([]);
-    setStepChecks([]);
-    setAttemptCounts([]);
-    setShowingSolutions([]);
-    setSolutions([]);
-    setExplanation(null);
-    setError(null);
-    setScore(100);
-    setCurrentDifficulty(5);
-  };
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-        delayChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
-
   return (
-    <div className="min-h-screen bg-[#F8F7FC]">
-      {/* Ultra Modern Header with Glassmorphism */}
+    <div className="min-h-screen bg-[#0f172a]">
+      {/* Header with Glassmorphism */}
       <motion.div 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        className="fixed top-0 left-0 right-0 backdrop-blur-xl bg-white/80 z-50"
+        className="fixed top-0 left-0 right-0 bg-[#1e293b]/50 backdrop-blur-xl 
+                 border-b border-white/10 z-50"
       >
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-between px-6 h-20">
@@ -365,36 +743,35 @@ const PracticePage = () => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate('/dashboard')}
-                className="p-2 rounded-xl bg-purple-50 text-purple-600 
-                         hover:bg-purple-100 transition-colors"
+                className="p-2 rounded-xl bg-white/5 text-white hover:bg-white/10 
+                         transition-colors"
               >
                 <ArrowLeft className="w-5 h-5" />
               </motion.button>
               
-              <div className="flex items-center gap-3 bg-gradient-to-r from-purple-500/10 
-                           to-purple-600/10 px-4 py-2 rounded-xl">
-                <Bot className="w-5 h-5 text-purple-600" />
-                <span className="font-medium bg-gradient-to-r from-purple-600 to-purple-800 
-                             bg-clip-text text-transparent">
-                  {profile?.math_course || 'IB Math Practice'}
+              <div className={`flex items-center gap-3 px-4 py-2 rounded-xl
+                           bg-gradient-to-r ${subjectConfig.themes}/10`}>
+                <subjectConfig.icon className="w-5 h-5 text-white" />
+                <span className={`font-medium bg-gradient-to-r ${subjectConfig.themes} 
+                              bg-clip-text text-transparent`}>
+                  {subjectDisplay || courseInfo?.course || 'Practice'}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Animated Score Display */}
+              {/* Score Display */}
               <motion.div 
                 whileHover={{ scale: 1.05 }}
                 className="relative overflow-hidden"
               >
-                <div className="px-6 py-2 bg-gradient-to-r from-purple-600 to-purple-800 
-                            rounded-xl text-white font-medium flex items-center gap-2">
+                <div className={`px-6 py-2 bg-gradient-to-r ${subjectConfig.themes} 
+                              rounded-xl text-white font-medium flex items-center gap-2`}>
                   <Sparkles className="w-4 h-4" />
                   <span>{score} points</span>
                 </div>
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-purple-400/20 
-                           to-transparent"
+                  className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent"
                   animate={{
                     x: ["0%", "100%", "0%"],
                   }}
@@ -407,10 +784,10 @@ const PracticePage = () => {
               </motion.div>
 
               {/* Level Indicator */}
-              <div className="px-4 py-2 bg-purple-50 rounded-xl">
+              <div className="px-4 py-2 bg-white/5 rounded-xl border border-white/10">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-purple-600" />
-                  <span className="text-purple-800 font-medium">Level {currentDifficulty}</span>
+                  <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${subjectConfig.themes}`} />
+                  <span className="text-white font-medium">Level {currentDifficulty}</span>
                 </div>
               </div>
             </div>
@@ -423,95 +800,96 @@ const PracticePage = () => {
         <div className="max-w-7xl mx-auto">
           <AnimatePresence mode="wait">
             {!question ? (
-              // Modern Topic Selection
+              // Topic Selection View
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
                 animate="show"
                 className="max-w-3xl mx-auto space-y-16"
               >
-                {/* Animated Title */}
+                {/* Title */}
                 <motion.div 
                   className="text-center space-y-4"
                   variants={itemVariants}
                 >
                   <h1 className="text-6xl font-bold">
-                    <span className="bg-gradient-to-r from-purple-600 to-purple-900 
-                                 bg-clip-text text-transparent">
+                    <span className={`bg-gradient-to-r ${subjectConfig.themes} 
+                                 bg-clip-text text-transparent`}>
                       Master
                     </span>
                     <br />
-                    <span className="text-gray-800">Your Math</span>
+                    <span className="text-white">{subjectConfig.title}</span>
                   </h1>
-                  <p className="text-gray-600 text-lg">
-                    Choose a topic to practice from {profile?.math_course}
+                  <p className="text-gray-400 text-lg">
+                    {subjectConfig.description}
                   </p>
                 </motion.div>
 
-                {/* Topic Grid */}
-                {courseSuggestions.length > 0 && (
-                  <motion.div variants={itemVariants}>
-                    <div className="grid grid-cols-2 gap-4">
-                      {courseSuggestions.map((topic) => (
-                        <motion.button
-                          key={topic}
-                          onClick={() => setInput(topic)}
-                          className="group relative overflow-hidden"
-                          whileHover={{ scale: 1.02 }}
-                          variants={itemVariants}
-                        >
-                          <div className="p-6 bg-white rounded-2xl border border-purple-100 
-                                      relative z-10">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-2">
-                                <h3 className="font-medium text-gray-800 group-hover:text-purple-700 
-                                           transition-colors">
-                                  {topic}
-                                </h3>
-                                <p className="text-sm text-gray-500">Start practicing</p>
-                              </div>
-                              <ChevronRight className="w-5 h-5 text-purple-600 
-                                                   group-hover:translate-x-1 transition-transform" />
+                {/* Topics Grid */}
+                <motion.div variants={itemVariants}>
+                  <div className="grid grid-cols-2 gap-4">
+                    {getSubjectSuggestions().map((topic: string) => (
+                      <motion.button
+                        key={topic}
+                        onClick={() => setInput(topic)}
+                        className="group relative overflow-hidden"
+                        whileHover={{ y: -4, scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        variants={itemVariants}
+                      >
+                        <div className="p-6 bg-[#1e293b]/50 backdrop-blur-xl rounded-2xl 
+                                    border border-white/10 relative z-10">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2">
+                              <h3 className="font-medium text-white group-hover:text-blue-400 
+                                         transition-colors">
+                                {topic}
+                              </h3>
+                              <p className="text-sm text-gray-400">Start practicing</p>
                             </div>
+                            <ChevronRight className="w-5 h-5 text-gray-400 
+                                                 group-hover:text-blue-400
+                                                 group-hover:translate-x-1 
+                                                 transition-all" />
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 
-                                      to-purple-600/0 group-hover:from-purple-600/10 
-                                      transition-colors rounded-2xl" />
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
+                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 
+                                    to-indigo-500/5 group-hover:from-blue-500/10 
+                                    group-hover:to-indigo-500/10 transition-colors 
+                                    rounded-2xl" />
+                      </motion.button>
+                    ))}
+                  </div>
+                </motion.div>
 
                 {/* Custom Topic Input */}
                 <motion.div
                   variants={itemVariants}
-                  className="relative backdrop-blur-lg"
+                  className="relative"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 
-                               to-purple-600/5 rounded-3xl" />
-                  <textarea
+                  <Editor
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={setInput}
                     onKeyDown={handleKeyPress}
-                    placeholder="Or type your own topic..."
-                    className="w-full p-8 bg-white/80 rounded-3xl resize-none relative
-                           border-2 border-purple-100 focus:border-purple-500 
-                           focus:ring-4 focus:ring-purple-100 transition-all
-                           text-lg min-h-[200px] placeholder:text-gray-400"
+                    placeholder={`Describe what you want to practice in ${subjectConfig.title}...`}
+                    className="w-full p-8 bg-[#1e293b]/50 backdrop-blur-xl rounded-3xl
+                           resize-none border border-white/10 focus:border-blue-500 
+                           focus:ring-4 focus:ring-blue-500/10 transition-all
+                           text-lg min-h-[200px] placeholder:text-gray-500
+                           text-white"
                   />
                   <div className="absolute bottom-6 right-6 flex items-center gap-2 
-                               bg-purple-50 px-3 py-1.5 rounded-lg">
-                    <kbd className="px-2 py-1 text-xs font-medium text-purple-600 
-                                bg-purple-100 rounded">⌘</kbd>
-                    <span className="text-purple-600 text-sm">+</span>
-                    <kbd className="px-2 py-1 text-xs font-medium text-purple-600 
-                                bg-purple-100 rounded">↵</kbd>
+                               bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                    <kbd className="px-2 py-1 text-xs font-medium text-white 
+                                bg-white/10 rounded">⌘</kbd>
+                    <span className="text-white text-sm">+</span>
+                    <kbd className="px-2 py-1 text-xs font-medium text-white 
+                                bg-white/10 rounded">↵</kbd>
                   </div>
                 </motion.div>
               </motion.div>
             ) : (
-              // Question Interface
+              // Practice Interface
               <motion.div
                 variants={containerVariants}
                 initial="hidden"
@@ -523,42 +901,42 @@ const PracticePage = () => {
                   variants={itemVariants}
                   className="relative overflow-hidden"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 
-                               via-purple-600/5 to-purple-700/5" />
-                  <div className="relative backdrop-blur-xl bg-white/90 rounded-3xl p-8 
-                              border border-purple-100">
+                  <div className="relative backdrop-blur-xl bg-[#1e293b]/50 rounded-3xl 
+                              p-8 border border-white/10">
                     <div className="space-y-6">
+                      {/* Question Header */}
                       <div className="flex justify-between items-start">
-                        <div className="space-y-1">
-                          <motion.div 
-                            className="inline-flex items-center gap-2 px-4 py-1.5 
-                                     bg-purple-100 text-purple-700 rounded-full"
-                            whileHover={{ scale: 1.05 }}
-                          >
-                            <span className="text-sm font-medium">
-                              {question.details.examStyle}
-                            </span>
-                          </motion.div>
-                        </div>
-                        <div className="px-4 py-1.5 bg-gradient-to-r from-purple-600 
-                                   to-purple-800 text-white rounded-full text-sm 
-                                   font-medium">
+                        <motion.div 
+                          className={`inline-flex items-center gap-2 px-4 py-1.5 
+                                   bg-gradient-to-r ${subjectConfig.themes}/20 
+                                   rounded-full`}
+                          whileHover={{ scale: 1.05 }}
+                        >
+                          <span className="text-sm font-medium text-white">
+                            {question.details.examStyle}
+                          </span>
+                        </motion.div>
+                        
+                        <div className={`px-4 py-1.5 bg-gradient-to-r ${subjectConfig.themes} 
+                                     text-white rounded-full text-sm font-medium`}>
                           {question.details.difficulty}
                         </div>
                       </div>
 
-                      <div className="font-mono text-lg bg-white/80 p-6 rounded-2xl 
-                                  border border-purple-100">
+                      {/* Question Content */}
+                      <div className="font-mono text-lg bg-[#1e293b]/30 p-6 rounded-2xl 
+                                  border border-white/10 text-white whitespace-pre-wrap">
                         {question.content}
                       </div>
 
+                      {/* Question Metadata */}
                       <div className="flex justify-between text-sm">
-                        <span className="text-purple-700 bg-purple-50 px-3 py-1.5 
-                                     rounded-lg">
+                        <span className="text-white bg-white/5 px-3 py-1.5 
+                                     rounded-lg border border-white/10">
                           {question.details.topic}
                         </span>
-                        <span className="text-purple-700 bg-purple-50 px-3 py-1.5 
-                                     rounded-lg">
+                        <span className="text-white bg-white/5 px-3 py-1.5 
+                                     rounded-lg border border-white/10">
                           {question.details.subtopic}
                         </span>
                       </div>
@@ -568,54 +946,57 @@ const PracticePage = () => {
 
                 {/* Steps Progress */}
                 <div className="space-y-6">
-                  {question.details.expectedSteps.map((step, index) => (
+                  {question.details.expectedSteps.map((step: string, index: number) => (
                     <motion.div
                       key={index}
                       variants={itemVariants}
                       className={`relative overflow-hidden rounded-2xl ${
-                        index === currentStep ? 'ring-2 ring-purple-500 ring-offset-4' :
-                        index < currentStep ? 'ring-2 ring-green-500 ring-offset-4' : ''
+                        index === currentStep ? 'ring-2 ring-offset-4 ring-offset-[#0f172a]' : ''
+                      } ${
+                        index === currentStep ? `ring-[${subjectConfig.themes.split(' ')[1]}]` :
+                        index < currentStep ? 'ring-2 ring-green-500 ring-offset-4 ring-offset-[#0f172a]' : ''
                       }`}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 
-                                  to-purple-600/5" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/5 to-transparent" />
                       <div className={`relative backdrop-blur-xl p-6 
-                        ${index === currentStep ? 'bg-white/90' :
-                          index < currentStep ? 'bg-green-50/90' : 'bg-white/80'}`}>
+                        ${index === currentStep ? 'bg-[#1e293b]/90' :
+                          index < currentStep ? 'bg-green-900/20' : 'bg-[#1e293b]/50'}`}>
                         <div className="flex items-start gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center 
-                                       justify-center text-sm font-medium ${
-                            index === currentStep ? 'bg-purple-100 text-purple-700' :
-                            index < currentStep ? 'bg-green-100 text-green-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
-                            {index + 1}
-                          </div>
+                          {subjectConfig.showStepNumbers && (
+                            <div className={`w-10 h-10 rounded-xl flex items-center 
+                                        justify-center text-sm font-medium ${
+                              index === currentStep ? `bg-gradient-to-r ${subjectConfig.themes} text-white` :
+                              index < currentStep ? 'bg-green-500/20 text-green-500' :
+                              'bg-white/5 text-gray-400'
+                            }`}>
+                              {index + 1}
+                            </div>
+                          )}
                           
                           <div className="flex-1 space-y-4">
-                            <h3 className="font-medium text-gray-800">{step}</h3>
+                            <h3 className="font-medium text-white">{step}</h3>
                             
                             {stepAnswers[index] && (
                               <motion.div
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: 'auto', opacity: 1 }}
-                                className="text-sm bg-white/80 p-4 rounded-xl 
-                                         border border-purple-100"
+                                className="text-sm bg-[#1e293b]/30 p-4 rounded-xl 
+                                         border border-white/10"
                               >
-                                <div className="font-mono text-gray-700">
+                                <div className="font-mono text-green-400">
                                   {stepAnswers[index]}
                                 </div>
                               </motion.div>
                             )}
                             
-                            {!stepAnswers[index] && !showingSolutions[index] && (
+                            {!stepAnswers[index] && !showingSolutions[index] && 
+                             index === currentStep && (
                               <motion.button
                                 onClick={() => showSolution(index)}
                                 className="flex items-center gap-2 px-4 py-2 
-                                         bg-gradient-to-r from-amber-500 to-amber-600 
-                                         text-white rounded-xl text-sm font-medium 
-                                         hover:from-amber-600 hover:to-amber-700 
-                                         transition-all shadow-lg shadow-amber-500/20"
+                                         bg-amber-500/20 text-amber-500 rounded-xl 
+                                         text-sm font-medium hover:bg-amber-500/30 
+                                         transition-all"
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                               >
@@ -625,16 +1006,27 @@ const PracticePage = () => {
                             )}
                             
                             {showingSolutions[index] && solutions[index] && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="bg-amber-50/50 backdrop-blur-xl p-4 
-                                         rounded-xl border border-amber-200"
-                              >
-                                <SolutionDisplay solution={solutions[index]} />
-                              </motion.div>
-                            )}
+  <motion.div
+    initial={{ height: 0, opacity: 0 }}
+    animate={{ height: 'auto', opacity: 1 }}
+    exit={{ height: 0, opacity: 0 }}
+    className="bg-amber-900/20 backdrop-blur-xl p-4 
+               rounded-xl border border-amber-500/20"
+  >
+    <div className="font-mono text-amber-400">
+      {/* Note the nested solution property */}
+      {solutions[index]?.solution?.working || 'Loading solution...'}
+    </div>
+    <div className="mt-4 text-sm text-amber-400">
+      Tips:
+      <ul className="list-disc pl-4 mt-2 space-y-1">
+        {solutions[index]?.solution?.tips?.map((tip: string, i: number) => (
+          <li key={i}>{tip}</li>
+        )) || <li>No tips available</li>}
+      </ul>
+    </div>
+  </motion.div>
+)}
                           </div>
                         </div>
                       </div>
@@ -642,210 +1034,242 @@ const PracticePage = () => {
                   ))}
                 </div>
 
-                {/* Current Step Input */}
-                {currentStep < question.details.expectedSteps.length && (
-                  <motion.div 
-                    variants={itemVariants}
-                    className="space-y-4"
-                  >
-                    <div className="relative">
-                      <textarea
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Enter your solution..."
-                        className="w-full p-8 bg-white/80 backdrop-blur-xl rounded-3xl
-                        resize-none relative border-2 border-purple-100
-                        focus:border-purple-500 focus:ring-4 focus:ring-purple-100
-                        transition-all text-lg min-h-[180px] placeholder:text-gray-400"
-             />
-             <div className="absolute bottom-6 right-6 flex items-center gap-2 
-                          bg-purple-50 px-3 py-1.5 rounded-lg">
-               <kbd className="px-2 py-1 text-xs font-medium text-purple-600 
-                           bg-purple-100 rounded">⌘</kbd>
-               <span className="text-purple-600 text-sm">+</span>
-               <kbd className="px-2 py-1 text-xs font-medium text-purple-600 
-                           bg-purple-100 rounded">↵</kbd>
-             </div>
-           </div>
+               
+{/* Current Step Input */}
+{currentStep < question.details.expectedSteps.length && (
+  <motion.div 
+    variants={itemVariants}
+    className="space-y-4"
+  >
+    <div className="relative">
+      <Editor
+        value={input}
+        onChange={setInput}
+        onKeyDown={handleKeyPress}
+        placeholder={`Enter your ${subjectConfig.answerFormat} answer...`}
+        className="w-full p-8 bg-[#1e293b]/50 backdrop-blur-xl rounded-3xl
+                resize-none border border-white/10 focus:border-blue-500 
+                focus:ring-4 focus:ring-blue-500/10 transition-all
+                text-lg min-h-[180px] placeholder:text-gray-500
+                text-white font-mono"
+      />
+      <div className="absolute bottom-6 right-6 flex items-center gap-4">
+        {/* Keyboard shortcut hint */}
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 
+                     rounded-lg border border-white/10 text-gray-400 text-sm">
+          <kbd className="px-2 py-1 bg-white/10 rounded text-xs">⌘</kbd>
+          <span>+</span>
+          <kbd className="px-2 py-1 bg-white/10 rounded text-xs">Enter</kbd>
+          <span className="ml-2">to submit</span>
+        </div>
 
-           <div className="flex gap-4">
-             {attemptCounts[currentStep] > 0 && error?.includes("Not quite right") && (
-               <motion.button
-                 onClick={() => setInput('')}
-                 whileHover={{ scale: 1.02 }}
-                 whileTap={{ scale: 0.98 }}
-                 className="flex items-center gap-2 px-6 py-3 bg-purple-50 
-                          text-purple-700 rounded-xl hover:bg-purple-100 
-                          transition-colors font-medium"
-               >
-                 <RefreshCw className="w-4 h-4" />
-                 Try Again ({attemptCounts[currentStep]})
-               </motion.button>
-             )}
+        {/* Action buttons */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={requestHint}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-white/5 
+                   rounded-xl border border-white/10 text-white 
+                   hover:bg-white/10 transition-colors disabled:opacity-50"
+        >
+          <HelpCircle className="w-4 h-4" />
+          Get Hint (-5 points)
+        </motion.button>
 
-             <motion.button
-               onClick={requestHint}
-               whileHover={{ scale: 1.02 }}
-               whileTap={{ scale: 0.98 }}
-               className="flex items-center gap-2 px-6 py-3 bg-purple-50 
-                        text-purple-700 rounded-xl hover:bg-purple-100 
-                        transition-colors font-medium"
-             >
-               <HelpCircle className="w-4 h-4" />
-               Need a Hint? (-5)
-             </motion.button>
-           </div>
-         </motion.div>
-       )}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={submitResponse}
+          disabled={loading || !input.trim()}
+          className={`flex items-center gap-2 px-6 py-2 rounded-xl
+                    text-white font-medium transition-colors
+                    ${loading || !input.trim() ? 
+                      'bg-blue-500/50 cursor-not-allowed' : 
+                      'bg-blue-500 hover:bg-blue-600'}`}
+        >
+          {loading ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <CheckCircle2 className="w-4 h-4" />
+          )}
+          Submit
+        </motion.button>
+        <motion.button
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.98 }}
+  onClick={() => {
+    setQuestion(null);
+    resetPracticeState();
+  }}
+  className="flex items-center gap-2 px-4 py-2 bg-white/5 
+             rounded-xl border border-white/10 text-white 
+             hover:bg-white/10 transition-colors"
+>
+  <ChevronRight className="w-4 h-4" />
+  Skip Question
+</motion.button>
+      </div>
+    </div>
 
-       {/* Action Buttons */}
-       <motion.div 
-         variants={itemVariants}
-         className="flex gap-4"
-       >
-         {currentStep === question.details.expectedSteps.length ? (
-           <>
-             <motion.button
-               onClick={generateSimilarQuestion}
-               whileHover={{ scale: 1.02 }}
-               whileTap={{ scale: 0.98 }}
-               className="flex-1 p-4 bg-gradient-to-r from-purple-600 to-purple-800
-                        text-white rounded-xl font-medium shadow-lg 
-                        shadow-purple-500/20 hover:from-purple-700 hover:to-purple-900
-                        transition-all flex items-center justify-center gap-2"
-             >
-               <RefreshCw className="w-4 h-4" />
-               Try Similar Question
-             </motion.button>
-             
-             <motion.button
-               onClick={resetPractice}
-               whileHover={{ scale: 1.02 }}
-               whileTap={{ scale: 0.98 }}
-               className="flex-1 p-4 bg-white text-purple-700 border-2 
-                        border-purple-200 rounded-xl font-medium 
-                        hover:bg-purple-50 transition-all"
-             >
-               New Topic
-             </motion.button>
-           </>
-         ) : (
-           <motion.button
-             onClick={moveToNewQuestion}
-             whileHover={{ scale: 1.02 }}
-             whileTap={{ scale: 0.98 }}
-             className="w-full p-4 bg-gradient-to-r from-purple-600 to-purple-800
-                      text-white rounded-xl font-medium shadow-lg 
-                      shadow-purple-500/20 hover:from-purple-700 hover:to-purple-900
-                      transition-all flex items-center justify-center gap-2"
-           >
-             <ArrowLeft className="w-4 h-4" />
-             Move on to New Question
-           </motion.button>
-         )}
-       </motion.div>
+    {/* Error Display */}
+    <AnimatePresence>
+    {(error || systemError) && (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    className={`fixed bottom-6 left-1/2 transform -translate-x-1/2 
+               px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 z-50
+               ${error?.includes("✨") ? 
+                 'bg-green-500/20 text-green-500 border border-green-500/20' :
+                 'bg-red-500/20 text-red-500 border border-red-500/20'}`}
+  >
+    {error?.includes("✨") ? (
+      <Sparkles className="w-5 h-5" />
+    ) : (
+      <AlertCircle className="w-5 h-5" />
+    )}
+    <span className="font-medium">{systemError || error}</span>
+    <button 
+      onClick={() => {
+        setError(null);
+        setSystemError(null);
+      }}
+      className="ml-2 hover:opacity-75 transition-opacity"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  </motion.div>
+)}
+    </AnimatePresence>
 
-       {/* Help/Solution Modal */}
-       <AnimatePresence>
-         {explanation && (
-           <motion.div
-             initial={{ opacity: 0 }}
-             animate={{ opacity: 1 }}
-             exit={{ opacity: 0 }}
-             className="fixed inset-0 bg-purple-900/20 backdrop-blur-sm
-                      flex items-center justify-center p-6 z-50"
-           >
-             <motion.div
-               initial={{ scale: 0.95, opacity: 0 }}
-               animate={{ scale: 1, opacity: 1 }}
-               exit={{ scale: 0.95, opacity: 0 }}
-               className="relative w-full max-w-lg overflow-hidden"
-             >
-               <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10
-                           via-purple-600/10 to-purple-700/10" />
-               <div className="relative bg-white/90 backdrop-blur-xl rounded-3xl p-6">
-                 <div className="flex items-center justify-between mb-6">
-                   <h3 className="text-xl font-medium text-purple-900">
-                     Help & Explanation
-                   </h3>
-                   <motion.button
-                     whileHover={{ scale: 1.1 }}
-                     whileTap={{ scale: 0.95 }}
-                     onClick={() => setExplanation(null)}
-                     className="p-1 hover:bg-purple-100 rounded-lg 
-                              transition-colors"
-                   >
-                     <X className="w-5 h-5 text-purple-600" />
-                   </motion.button>
-                 </div>
-                 
-                 <div className="space-y-6">
-                   {explanation.hint && (
-                     <div className="space-y-2">
-                       <div className="font-medium text-amber-700">Hint:</div>
-                       <div className="bg-amber-50/50 backdrop-blur-xl p-4 
-                                   rounded-xl border border-amber-200">
-                         <p className="text-gray-700">{explanation.hint}</p>
-                       </div>
-                     </div>
-                   )}
-                   {explanation.conceptExplanation && (
-                     <div className="space-y-2">
-                       <div className="font-medium text-purple-700">
-                         Understanding the Concept:
-                       </div>
-                       <div className="bg-purple-50/50 backdrop-blur-xl p-4 
-                                   rounded-xl border border-purple-200">
-                         <p className="text-gray-700">
-                           {explanation.conceptExplanation}
-                         </p>
-                       </div>
-                     </div>
-                   )}
-                 </div>
-               </div>
-             </motion.div>
-           </motion.div>
-         )}
-       </AnimatePresence>
-     </motion.div>
-   )}
- </AnimatePresence>
+    {/* Explanation Modal */}
+    <AnimatePresence>
+      {explanation && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 
+                   flex items-center justify-center p-6"
+          onClick={() => setExplanation(null)}
+        >
+          <motion.div
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0.95 }}
+            className="w-full max-w-2xl bg-[#1e293b] rounded-3xl p-8 
+                     border border-white/10 space-y-6"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="space-y-6">
+              {/* Hint */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-white">
+                  <HelpCircle className="w-5 h-5" />
+                  <h3 className="font-medium">Hint</h3>
+                </div>
+                <p className="text-gray-400">{explanation.hint}</p>
+              </div>
 
- {/* Loading Overlay */}
- <AnimatePresence>
-   {loading && (
-     <motion.div
-       initial={{ opacity: 0 }}
-       animate={{ opacity: 1 }}
-       exit={{ opacity: 0 }}
-       className="fixed inset-0 bg-white/80 backdrop-blur-sm 
-                flex items-center justify-center z-50"
-     >
-       <motion.div
-         className="relative"
-       >
-         <motion.div
-           className="w-16 h-16 border-4 border-purple-200 rounded-full"
-           animate={{ rotate: 360 }}
-           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-         />
-         <motion.div
-           className="absolute inset-0 border-4 border-purple-600 
-                    rounded-full border-t-transparent"
-           animate={{ rotate: -360 }}
-           transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-         />
-       </motion.div>
-     </motion.div>
-   )}
- </AnimatePresence>
+              {/* Concept Explanation */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-white">
+                  <Brain className="w-5 h-5" />
+                  <h3 className="font-medium">Concept</h3>
+                </div>
+                <p className="text-gray-400">{explanation.conceptExplanation}</p>
+              </div>
+
+              {/* Prerequisites */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-white">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <h3 className="font-medium">Prerequisites</h3>
+                </div>
+                <ul className="space-y-2">
+                  {explanation.prerequisites.map((prereq, index) => (
+                    <li key={index} className="text-gray-400 flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-2" />
+                      {prereq}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Common Mistakes */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-white">
+                  <AlertCircle className="w-5 h-5" />
+                  <h3 className="font-medium">Common Mistakes</h3>
+                </div>
+                <ul className="space-y-2">
+                  {explanation.commonMistakes.map((mistake, index) => (
+                    <li key={index} className="text-gray-400 flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-2" />
+                      {mistake}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setExplanation(null)}
+              className="absolute top-4 right-4 text-gray-400 
+                       hover:text-white transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </motion.div>
+)}
+
+{/* Practice Complete Actions */}
+{question && currentStep === question.details.expectedSteps.length && (
+  <motion.div
+    variants={itemVariants}
+    className="fixed bottom-6 right-6 flex items-center gap-4"
+  >
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={generateSimilarQuestion}
+      disabled={loading}
+      className="flex items-center gap-2 px-6 py-2 bg-green-500 
+                 hover:bg-green-600 rounded-xl text-white font-medium 
+                 transition-colors disabled:opacity-50"
+    >
+      <RefreshCw className="w-4 h-4" />
+      Similar Question
+    </motion.button>
+
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={resetPractice}
+      disabled={loading}
+      className="flex items-center gap-2 px-6 py-2 bg-blue-500 
+                 hover:bg-blue-600 rounded-xl text-white font-medium 
+                 transition-colors disabled:opacity-50"
+    >
+      <Bot className="w-4 h-4" />
+      New Topic
+    </motion.button>
+  </motion.div>
+)}
+</motion.div>
+)}
+</AnimatePresence>
 </div>
 </div>
 </div>
 );
-};
+}
+
 
 export default PracticePage;
-
