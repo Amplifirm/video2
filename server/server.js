@@ -3,21 +3,49 @@ import cors from 'cors';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
+// Load environment variables
 dotenv.config();
 
-// Add this near the top of your server.js
-import dotenv from 'dotenv';
-dotenv.config();
-
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+// Environment variables
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+const PORT = process.env.PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
-// Update your CORS configuration
+// Verify API key is present
+if (!CLAUDE_API_KEY) {
+    console.error('CLAUDE_API_KEY is required. Please check your .env file');
+    process.exit(1);
+}
+
+// Initialize express
+const app = express();
+
+const allowedOrigins = [
+  'https://www.x-cubed.com',
+  'https://x-cubed.com',
+  'https://xcubed.vercel.app',
+  'http://localhost:5173'
+];
+
+// CORS configuration
 app.use(cors({
-  origin: ['https://x-cubed.com', 'https://xcubed.vercel.app'],
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   methods: ['GET', 'POST'],
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200
 }));
+
+
+app.use(express.json());
+
+// Rest of your code remains the same...
 
 // Add a health check endpoint
 app.get('/api/health', (req, res) => {
@@ -165,8 +193,7 @@ mathematics_ai: `You are an IB Mathematics AI expert. Generate precise mathemati
            Focus on critical thinking and textual analysis skills.`
 };
 
-// Express setup
-const app = express();
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   methods: ['GET', 'POST'],
@@ -872,5 +899,7 @@ function getSubjectSpecificSolutionFields(subject) {
   return fields[subject] || '';
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log('CORS enabled for origins:', allowedOrigins);
+});
