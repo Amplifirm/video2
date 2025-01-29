@@ -14,9 +14,9 @@ const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 
 // Update your CORS configuration
 app.use(cors({
-    origin: FRONTEND_URL,
-    methods: ['GET', 'POST'],
-    credentials: true
+  origin: ['https://x-cubed.com', 'https://xcubed.vercel.app'],
+  methods: ['GET', 'POST'],
+  credentials: true
 }));
 
 // Add a health check endpoint
