@@ -5,6 +5,41 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Add this near the top of your server.js
+import dotenv from 'dotenv';
+dotenv.config();
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+
+// Update your CORS configuration
+app.use(cors({
+    origin: FRONTEND_URL,
+    methods: ['GET', 'POST'],
+    credentials: true
+}));
+
+// Add a health check endpoint
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
+// Add error handling
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ 
+        error: 'Something broke!',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
+});
+
+// Verify API key is present
+if (!CLAUDE_API_KEY) {
+    console.error('CLAUDE_API_KEY is required');
+    process.exit(1);
+}
+
+
 // Subject configurations
 // Update server's SUBJECT_CONFIGS
 const SUBJECT_CONFIGS = {
@@ -145,8 +180,6 @@ app.use((req, res, next) => {
   console.log(`${req.method} ${req.path}`, req.body);
   next();
 });
-
-const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
 
 // Helper function to extract JSON from text with improved error handling
 function extractJSONFromText(text) {

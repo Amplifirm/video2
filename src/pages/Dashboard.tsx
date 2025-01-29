@@ -39,6 +39,7 @@ import {
  Target
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import UserMenu from './UserMenu';
 
 
 interface Subject {
@@ -417,6 +418,27 @@ const Dashboard = () => {
  const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
  const [expandedSection, setExpandedSection] = useState<string>('subjects');
  const [activeView, setActiveView] = useState<string>('overview');
+ const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+
+ const handleUpdateProfile = async (updates: any) => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('No user logged in');
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.id);
+
+    if (error) throw error;
+
+    // Update local profile state
+    setProfile(prev => prev ? { ...prev, ...updates } : null);
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    throw error;
+  }
+};
  
  const handleSubjectSelect = (e: React.MouseEvent, subject: Subject) => {
   e.preventDefault();
@@ -696,36 +718,45 @@ const Dashboard = () => {
 
 
        {/* User Section */}
-       <motion.div
-         initial={{ opacity: 0 }}
-         animate={{ opacity: 1 }}
-         transition={{ delay: 0.3 }}
-         className="p-4 border-t border-white/10"
-       >
-         <motion.button
-           whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
-           className="w-full p-2 rounded-xl flex items-center text-white group"
-         >
-           <motion.div
-             whileHover={{ scale: 1.05 }}
-             className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500
-                      flex items-center justify-center"
-           >
-             {profile?.first_name[0]}
-           </motion.div>
-           <div className="hidden lg:block ml-3 flex-1 text-left">
-             <div className="font-medium">{profile?.first_name}</div>
-             <div className="text-sm text-gray-400">Student</div>
-           </div>
-           <motion.div
-             whileHover={{ rotate: 180 }}
-             transition={{ duration: 0.3 }}
-             className="hidden lg:block"
-           >
-             <Settings className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-           </motion.div>
-         </motion.button>
-       </motion.div>
+<motion.div
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ delay: 0.3 }}
+  className="p-4 border-t border-white/10 relative"
+>
+  <motion.button
+    whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
+    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+    className="w-full p-2 rounded-xl flex items-center text-white group"
+  >
+    <motion.div
+      whileHover={{ scale: 1.05 }}
+      className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500
+               flex items-center justify-center"
+    >
+      {profile?.first_name[0]}
+    </motion.div>
+    <div className="hidden lg:block ml-3 flex-1 text-left">
+      <div className="font-medium">{profile?.first_name}</div>
+      <div className="text-sm text-gray-400">Student</div>
+    </div>
+    <motion.div
+      animate={{ rotate: isUserMenuOpen ? 180 : 0 }}
+      transition={{ duration: 0.3 }}
+      className="hidden lg:block"
+    >
+      <Settings className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
+    </motion.div>
+  </motion.button>
+
+  {/* User Menu */}
+  <UserMenu
+    isOpen={isUserMenuOpen}
+    onClose={() => setIsUserMenuOpen(false)}
+    profile={profile!}
+    onUpdateProfile={handleUpdateProfile}
+  />
+</motion.div>
      </motion.div>
      {/* Main Content Area */}
      <div className="flex-1 p-8">

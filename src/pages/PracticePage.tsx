@@ -329,7 +329,31 @@ const PracticePage: React.FC = () => {
   };
   
 
-  const subjectConfig = SUBJECT_CONFIGS[subjectId || 'mathematics_aa'] || SUBJECT_CONFIGS.mathematics_aa;
+  const subjectConfig = (() => {
+    // If we have a direct match in the configs, use it
+    if (subjectId && SUBJECT_CONFIGS[subjectId]) {
+      return SUBJECT_CONFIGS[subjectId];
+    }
+  
+    // Otherwise, try to match the base subject (without HL/SL)
+    const baseSubject = subjectId?.split('_').slice(0, -1).join('_') || '';
+    const level = subjectId?.endsWith('hl') ? 'HL' : 'SL';
+  
+    // Find the matching config
+    const matchingConfig = Object.entries(SUBJECT_CONFIGS).find(([key]) => 
+      key.startsWith(baseSubject)
+    );
+  
+    if (matchingConfig) {
+      return {
+        ...matchingConfig[1],
+        title: `${matchingConfig[1].title} ${level}` // Add the level to the title
+      };
+    }
+  
+    // Fallback to mathematics_aa only if we must
+    return SUBJECT_CONFIGS.mathematics_aa;
+  })();
 
   // Add this after your state declarations
 useEffect(() => {
@@ -342,62 +366,80 @@ useEffect(() => {
 useEffect(() => {
   if (courseInfo?.course) {
     const { displayName } = getSubjectDisplayInfo(
-      subjectId || 'mathematics_aa',
+      subjectId || '',  // Remove the default 'mathematics_aa'
       courseInfo.course
     );
     setSubjectDisplay(displayName);
   }
 }, [subjectId, courseInfo]);
 
-
+// First, create a mapping from server subject IDs to base subjects
+const getBaseSubject = (subjectId: string | undefined): string => {
+  if (!subjectId) return 'mathematics';
+  
+  // Handle special cases first
+  if (subjectId.startsWith('mathematics')) {
+    return 'mathematics';
+  }
+  
+  // For other subjects, remove _hl or _sl suffix
+  const base = subjectId.replace(/_hl$|_sl$/, '');
+  return base;
+};
   // Get subject-specific suggestions
-  const getSubjectSuggestions = (): string[] => {
-    const suggestions: Record<string, string[]> = {
-      mathematics_aa: [  // Updated from 'math'
-        'Calculus: Integration',
-        'Vectors: Cross Product',
-        'Statistics: Normal Distribution',
-        'Complex Numbers'
-      ],
-      physics: [
-        'Mechanics: Forces',
-        'Thermodynamics',
-        'Wave Motion',
-        'Electricity'
-      ],
-      chemistry: [
-        'Organic Chemistry',
-        'Thermochemistry',
-        'Equilibrium',
-        'Redox'
-      ],
-      biology: [
-        'Cell Biology',
-        'Genetics',
-        'Ecology',
-        'Evolution'
-      ],
-      economics: [
-        'Supply and Demand',
-        'Market Structures',
-        'International Trade',
-        'Development'
-      ],
-      business: [
-        'Marketing',
-        'Human Resources',
-        'Finance',
-        'Operations'
-      ],
-      computer_science: [
-        'Algorithms',
-        'Data Structures',
-        'Object-Oriented Programming',
-        'Databases'
-      ]
-    };
-    return suggestions[subjectId || 'mathematics_aa'] || suggestions.mathematics_aa;
+  // Update the getSubjectSuggestions function
+// Update the getSubjectSuggestions function
+const getSubjectSuggestions = (): string[] => {
+  const baseSubject = getBaseSubject(subjectId);
+  console.log('Subject ID:', subjectId, 'Base Subject:', baseSubject); // Debug log
+  
+  const suggestions: Record<string, string[]> = {
+    mathematics: [
+      'Calculus: Integration',
+      'Vectors: Cross Product',
+      'Statistics: Normal Distribution',
+      'Complex Numbers'
+    ],
+    physics: [
+      'Mechanics: Forces',
+      'Thermodynamics',
+      'Wave Motion',
+      'Electricity'
+    ],
+    chemistry: [
+      'Organic Chemistry',
+      'Thermochemistry',
+      'Equilibrium',
+      'Redox'
+    ],
+    biology: [
+      'Cell Biology',
+      'Genetics',
+      'Ecology',
+      'Evolution'
+    ],
+    economics: [
+      'Supply and Demand',
+      'Market Structures',
+      'International Trade',
+      'Development'
+    ],
+    business: [
+      'Marketing',
+      'Human Resources',
+      'Finance',
+      'Operations'
+    ],
+    computer_science: [
+      'Algorithms',
+      'Data Structures',
+      'Object-Oriented Programming',
+      'Databases'
+    ]
   };
+
+  return suggestions[baseSubject] || suggestions.mathematics;
+};
 
   // Handle keyboard shortcuts
   const handleKeyPress = async (e: React.KeyboardEvent): Promise<void> => {
@@ -809,21 +851,31 @@ const response: ClaudeQuestionResponse = await generateQuestion(
               >
                 {/* Title */}
                 <motion.div 
-                  className="text-center space-y-4"
-                  variants={itemVariants}
-                >
-                  <h1 className="text-6xl font-bold">
-                    <span className={`bg-gradient-to-r ${subjectConfig.themes} 
-                                 bg-clip-text text-transparent`}>
-                      Master
-                    </span>
-                    <br />
-                    <span className="text-white">{subjectConfig.title}</span>
-                  </h1>
-                  <p className="text-gray-400 text-lg">
-                    {subjectConfig.description}
-                  </p>
-                </motion.div>
+  className="text-center space-y-4"
+  variants={itemVariants}
+>
+  <h1 className="text-6xl font-bold">
+    <span className={`bg-gradient-to-r ${subjectConfig.themes} 
+                   bg-clip-text text-transparent`}>
+      Master
+    </span>
+    <br />
+    <span className="text-white">
+      {subjectDisplay || courseInfo?.course || subjectConfig.title}
+    </span>
+  </h1>
+  <p className="text-gray-400 text-lg">
+    {(() => {
+      // Get the base subject from the subject ID
+      const baseSubject = subjectId?.split('_')[0] || '';
+      const config = Object.entries(SUBJECT_CONFIGS).find(([key]) => 
+        key.startsWith(baseSubject)
+      )?.[1];
+      
+      return config?.description || subjectConfig.description;
+    })()}
+  </p>
+</motion.div>
 
                 {/* Topics Grid */}
                 <motion.div variants={itemVariants}>
