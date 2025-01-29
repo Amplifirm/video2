@@ -1,0 +1,26 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "server.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/(.*)",
+        "dest": "server.js",
+        "methods": ["GET", "POST", "OPTIONS"],
+        "headers": {
+          "Access-Control-Allow-Origin": "https://www.x-cubed.com",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "X-Requested-With, Content-Type, Accept, Authorization",
+          "Access-Control-Allow-Credentials": "true"
+        }
+      },
+      {
+        "src": "/(.*)",
+        "dest": "server.js"
+      }
+    ]
+  }

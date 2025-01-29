@@ -42,8 +42,13 @@ app.use(cors({
   optionsSuccessStatus: 200
 }));
 
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
-app.use(express.json());
 
 // Rest of your code remains the same...
 
@@ -53,13 +58,19 @@ app.get('/api/health', (req, res) => {
 });
 
 // Add error handling
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ 
-        error: 'Something broke!',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-    });
+// CORS configuration
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://www.x-cubed.com');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
 });
+app.use(express.json());
 
 // Verify API key is present
 if (!CLAUDE_API_KEY) {
@@ -200,7 +211,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }));
 
-app.use(express.json());
 
 // Logging middleware
 app.use((req, res, next) => {
