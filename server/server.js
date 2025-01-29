@@ -3,8 +3,21 @@ import cors from 'cors';
 import axios from 'axios';
 import dotenv from 'dotenv';
 
+
+// Initialize express
+const app = express();
 // Load environment variables
+app.use(express.json());
+
 dotenv.config();
+
+// One single CORS configuration
+app.use(cors({
+  origin: ['https://www.x-cubed.com', 'https://x-cubed.com', 'https://xcubed.vercel.app', 'http://localhost:5173'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 // Environment variables
 const CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
@@ -17,8 +30,6 @@ if (!CLAUDE_API_KEY) {
     process.exit(1);
 }
 
-// Initialize express
-const app = express();
 
 const allowedOrigins = [
   'https://www.x-cubed.com',
@@ -26,28 +37,6 @@ const allowedOrigins = [
   'https://xcubed.vercel.app',
   'http://localhost:5173'
 ];
-
-// CORS configuration
-app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
-    }
-    return callback(null, true);
-  },
-  methods: ['GET', 'POST'],
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
-
-app.use(cors({
-  origin: allowedOrigins,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
-}));
 
 
 // Rest of your code remains the same...
