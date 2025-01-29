@@ -13,9 +13,8 @@ dotenv.config();
 
 // One single CORS configuration
 app.use(cors({
-  origin: ['https://www.x-cubed.com', 'https://x-cubed.com', 'https://xcubed.vercel.app', 'http://localhost:5173'],
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: ['https://www.x-cubed.com', 'http://localhost:5173'],
+  methods: ['GET', 'POST'],
   credentials: true
 }));
 
