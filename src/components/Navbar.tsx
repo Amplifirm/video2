@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { Plane, Menu, X, ChevronRight, Globe, Sparkles, Book, Users } from 'lucide-react';
 

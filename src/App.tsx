@@ -2,8 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import HomePage from './pages/Home';
-import Home2Page from './pages/Home2';
-import HomeTestPage from './pages/hometest';
+
 
 const pageVariants = {
   initial: {
@@ -77,23 +76,6 @@ const AnimatedRoutes = () => {
           } 
         />
         
-        <Route 
-          path="/home2" 
-          element={
-            <PageWrapper>
-              <Home2Page />
-            </PageWrapper>
-          } 
-        />
-
-        <Route 
-          path="/hometest" 
-          element={
-            <PageWrapper>
-              <HomeTestPage />
-            </PageWrapper>
-          } 
-        />
 
         <Route 
           path="*" 

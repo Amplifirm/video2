@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { 
-  Book, Users, Clock, Award, ChevronDown, Menu, X,
+  Book, Users, Award, ChevronDown,
   Phone, Mail, MapPin, Facebook, Instagram, Linkedin,
-  Globe, Calendar, Shield, Plane, PenTool, Palette, Twitter,
-  Languages, Sparkles, Target, Heart, Map, GraduationCap, Check, Send,
-  Lightbulb, Star, Zap, ArrowRight, Quote, Building2
+  Globe, Plane, Palette, Twitter,
+ Target,  Map, GraduationCap, Check, Send,
+  Star, ArrowRight, Quote, Building2
 } from 'lucide-react';
 
 import Navbar from '../components/Navbar';
@@ -22,8 +22,8 @@ interface FAQ {
   }
 
 const HomePage = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState('home');
+
+  const [, setActiveSection] = useState('home');
   const { scrollYProgress } = useScroll();
   const backgroundY = useTransform(scrollYProgress, [0, 1], ['0%', '50%']);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
@@ -1341,7 +1341,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ faq, index }) => {
                   'Student Life',
                   'Admissions',
                   'Contact'
-                ].map((link, index) => (
+                ].map((link) => (
                   <motion.li
                     key={link}
                     whileHover={{ x: 10 }}
@@ -1369,7 +1369,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ faq, index }) => {
                   'Accommodation',
                   'Visa Support',
                   'FAQs'
-                ].map((link, index) => (
+                ].map((link) => (
                   <motion.li
                   key={link}
                   whileHover={{ x: 10 }}
@@ -1418,7 +1418,7 @@ const FAQItem: React.FC<FAQItemProps> = ({ faq, index }) => {
                 { icon: <Instagram className="w-5 h-5" />, label: 'Instagram' },
                 { icon: <Twitter className="w-5 h-5" />, label: 'Twitter' },
                 { icon: <Linkedin className="w-5 h-5" />, label: 'LinkedIn' }
-              ].map((social, index) => (
+              ].map((social) => (
                 <motion.a
                   key={social.label}
                   href="#"
