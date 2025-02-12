@@ -2,3 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-gold: #C6A869;
+  --color-stone: #8B8178;
+  --color-nile: #1B4B5A;
+  --color-papyrus: #FFE8B6;
+}
+
+body {
+  margin: 0;
+  font-family: 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #000;
+  color: var(--color-papyrus);
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-stone);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold);
+  border-radius: 6px;
+}
+
+
+/* Optional: Add these for better text rendering */
+.text-rendering-crisp {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
