@@ -1,81 +1,134 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import Signup from './pages/SignupPage';
-import Dashboard from './pages/Dashboard';
-import PracticePage from './pages/PracticePage';
-import FavoritesPage from './pages/FavoritesPage';
-import ProfileSetup from './pages/ProfileSetup';
-import EditProfile from './pages/EditProfile';
-import InitialAssessment from './pages/InitialAssesment';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import HomePage from './pages/Home';
-import LoginPage from './pages/loginPage';
+import Home2Page from './pages/Home2';
+import HomeTestPage from './pages/hometest';
 
-export default function App() {
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    y: 20
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.6,
+      ease: "easeOut"
+    }
+  },
+  exit: {
+    opacity: 0,
+    y: -20,
+    transition: {
+      duration: 0.4,
+      ease: "easeIn"
+    }
+  }
+};
+
+const LoadingScreen = () => (
+  <div className="min-h-screen bg-black flex items-center justify-center">
+    <motion.div
+      animate={{
+        scale: [1, 1.2, 1],
+        opacity: [1, 0.8, 1]
+      }}
+      transition={{
+        duration: 1.5,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }}
+      className="text-4xl font-light text-green-400"
+    >
+      GLA
+    </motion.div>
+  </div>
+);
+
+interface PageWrapperProps {
+  children: React.ReactNode;
+}
+
+const PageWrapper: React.FC<PageWrapperProps> = ({ children }) => (
+  <motion.div
+    initial="initial"
+    animate="animate"
+    exit="exit"
+    variants={pageVariants}
+  >
+    {children}
+  </motion.div>
+);
+
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-
-        {/* Protected routes */}
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
         <Route 
-          path="/dashboard" 
+          path="/" 
           element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
+            <PageWrapper>
+              <HomePage />
+            </PageWrapper>
           } 
         />
         
         <Route 
-          path="/favourites" 
+          path="/home2" 
           element={
-            <ProtectedRoute>
-              <FavoritesPage />
-            </ProtectedRoute>
+            <PageWrapper>
+              <Home2Page />
+            </PageWrapper>
           } 
         />
 
         <Route 
-          path="/profile-setup" 
+          path="/hometest" 
           element={
-            <ProtectedRoute>
-              <ProfileSetup />
-            </ProtectedRoute>
+            <PageWrapper>
+              <HomeTestPage />
+            </PageWrapper>
           } 
         />
-        
+
         <Route 
-          path="/initial" 
+          path="*" 
           element={
-            <ProtectedRoute>
-              <InitialAssessment />
-            </ProtectedRoute>
-          } 
-        />
-        
-        <Route 
-          path="/profile" 
-          element={
-            <ProtectedRoute>
-              <EditProfile />
-            </ProtectedRoute>
-          } 
-        />
-        
-        {/* Updated practice routes */}
-        <Route 
-          path="/practice/:subjectId" 
-          element={
-            <ProtectedRoute>
-              <PracticePage />
-            </ProtectedRoute>
+            <PageWrapper>
+              <div className="min-h-screen bg-black flex items-center justify-center text-white">
+                <div className="text-center">
+                  <h1 className="text-4xl font-light mb-4">404 - Page Not Found</h1>
+                  <p className="text-white/70 mb-8">The page you're looking for doesn't exist.</p>
+                  <motion.a
+                    href="/"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="inline-block bg-green-400 text-black px-6 py-3 rounded-lg font-medium hover:bg-green-300 transition-colors"
+                  >
+                    Go Home
+                  </motion.a>
+                </div>
+              </div>
+            </PageWrapper>
           } 
         />
       </Routes>
-    </BrowserRouter>
+    </AnimatePresence>
   );
-}
+};
+
+const App = () => {
+  return (
+    <Router>
+      <React.Suspense fallback={<LoadingScreen />}>
+        <AnimatedRoutes />
+      </React.Suspense>
+    </Router>
+  );
+};
+
+export default App;
