@@ -1435,128 +1435,138 @@ const Home: React.FC = () => {
       <RotatingCube size={150} position={{ top: '15%', left: '10%' }} color="#3B82F6" speed={20} />
       <RotatingCube size={100} position={{ bottom: '20%', right: '15%' }} color="#F97316" speed={15} />
       
-      {/* Enhanced Navigation with animation and effects */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm shadow-md">
+     {/* Enhanced Navigation with animation and effects */}
+<header className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm shadow-md">
+  <div className="container mx-auto px-4 py-4">
+    <div className="flex justify-between items-center">
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <a href="#" className="text-2xl font-bold text-gray-800 flex items-center">
+          <span className="relative">
+            <span className="text-blue-600 mr-1 relative z-10">Video</span>
+            <motion.span 
+              className="absolute -bottom-1 left-0 right-0 h-2 bg-blue-100"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 0.5, duration: 0.5 }}
+            />
+          </span>
+          <span>Editors</span>
+        </a>
+      </motion.div>
+      
+      {/* Desktop Navigation */}
+      <motion.nav
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="hidden md:flex items-center space-x-8"
+      >
+        {['Home', 'Services', 'Portfolio', 'About', 'Contact'].map((item, index) => (
+          <motion.a 
+            key={item}
+            href={item === 'Home' ? '#' : `#${item.toLowerCase()}`}
+            className="text-gray-800 hover:text-blue-600 transition-colors relative group"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 * index + 0.3 }}
+            whileHover={{ scale: 1.05 }}
+          >
+            {item}
+            <motion.span 
+              className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600"
+              initial={{ width: 0 }}
+              whileHover={{ width: '100%' }}
+              transition={{ duration: 0.3 }}
+            />
+          </motion.a>
+        ))}
+        
+        <MagneticButton 
+          variant="gradient" 
+          size="sm" 
+          className="ml-4"
+          onClick={() => window.location.href = '/newhome'}
+        >
+          Get a Free Consultation
+        </MagneticButton>
+      </motion.nav>
+      
+      {/* Mobile menu button */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+        className="md:hidden text-gray-800 p-2"
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+      >
+        <FaBars className="text-2xl" />
+      </motion.button>
+    </div>
+  </div>
+  
+  {/* Enhanced Mobile Navigation */}
+  <AnimatePresence>
+    {mobileMenuOpen && (
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ duration: 0.3 }}
+        className="md:hidden bg-white/95 backdrop-blur-sm shadow-lg"
+      >
         <div className="container mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <a href="#" className="text-2xl font-bold text-gray-800 flex items-center">
-                <span className="relative">
-                  <span className="text-blue-600 mr-1 relative z-10">Video</span>
-                  <motion.span 
-                    className="absolute -bottom-1 left-0 right-0 h-2 bg-blue-100"
-                    initial={{ scaleX: 0 }}
-                    animate={{ scaleX: 1 }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                  />
-                </span>
-                <span>Editors</span>
-              </a>
-            </motion.div>
+          <motion.nav 
+            className="flex flex-col space-y-4"
+            variants={{
+              open: { transition: { staggerChildren: 0.07, delayChildren: 0.2 } },
+              closed: { transition: { staggerChildren: 0.05, staggerDirection: -1 } }
+            }}
+            initial="closed"
+            animate="open"
+          >
+            {['Home', 'Services', 'Portfolio', 'About', 'Contact'].map((item) => (
+              <motion.a
+                key={item}
+                href={item === 'Home' ? '#' : `#${item.toLowerCase()}`}
+                className="text-gray-800 hover:text-blue-600 transition-colors py-2 pl-4 border-l-2 border-transparent hover:border-blue-500"
+                variants={{
+                  open: { opacity: 1, x: 0 },
+                  closed: { opacity: 0, x: -20 }
+                }}
+                whileHover={{ scale: 1.02, x: 5 }}
+              >
+                {item}
+              </motion.a>
+            ))}
             
-            {/* Desktop Navigation */}
-            <motion.nav
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="hidden md:flex items-center space-x-8"
+            <motion.div
+              variants={{
+                open: { opacity: 1, y: 0 },
+                closed: { opacity: 0, y: 20 }
+              }}
+              className="pt-2"
             >
-              {['Home', 'Services', 'Portfolio', 'About', 'Contact'].map((item, index) => (
-                <motion.a 
-                  key={item}
-                  href={item === 'Home' ? '#' : `#${item.toLowerCase()}`}
-                  className="text-gray-800 hover:text-blue-600 transition-colors relative group"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 * index + 0.3 }}
-                  whileHover={{ scale: 1.05 }}
-                >
-                  {item}
-                  <motion.span 
-                    className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600"
-                    initial={{ width: 0 }}
-                    whileHover={{ width: '100%' }}
-                    transition={{ duration: 0.3 }}
-                  />
-                </motion.a>
-              ))}
-              
-              <MagneticButton variant="gradient" size="sm" className="ml-4">
+              <MagneticButton 
+                variant="gradient" 
+                size="sm" 
+                className="w-full"
+                onClick={() => window.location.href = '/newhome'}
+              >
                 Get a Free Consultation
               </MagneticButton>
-            </motion.nav>
-            
-            {/* Mobile menu button */}
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5 }}
-              className="md:hidden text-gray-800 p-2"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-            >
-              <FaBars className="text-2xl" />
-            </motion.button>
-          </div>
-        </div>
-        
-        {/* Enhanced Mobile Navigation */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="md:hidden bg-white/95 backdrop-blur-sm shadow-lg"
-            >
-              <div className="container mx-auto px-4 py-4">
-                <motion.nav 
-                  className="flex flex-col space-y-4"
-                  variants={{
-                    open: { transition: { staggerChildren: 0.07, delayChildren: 0.2 } },
-                    closed: { transition: { staggerChildren: 0.05, staggerDirection: -1 } }
-                  }}
-                  initial="closed"
-                  animate="open"
-                >
-                  {['Home', 'Services', 'Portfolio', 'About', 'Contact'].map((item) => (
-                    <motion.a
-                      key={item}
-                      href={item === 'Home' ? '#' : `#${item.toLowerCase()}`}
-                      className="text-gray-800 hover:text-blue-600 transition-colors py-2 pl-4 border-l-2 border-transparent hover:border-blue-500"
-                      variants={{
-                        open: { opacity: 1, x: 0 },
-                        closed: { opacity: 0, x: -20 }
-                      }}
-                      whileHover={{ scale: 1.02, x: 5 }}
-                    >
-                      {item}
-                    </motion.a>
-                  ))}
-                  
-                  <motion.div
-                    variants={{
-                      open: { opacity: 1, y: 0 },
-                      closed: { opacity: 0, y: 20 }
-                    }}
-                    className="pt-2"
-                  >
-                    <MagneticButton variant="gradient" size="sm" className="w-full">
-                      Get a Free Consultation
-                    </MagneticButton>
-                  </motion.div>
-                </motion.nav>
-              </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
+          </motion.nav>
+        </div>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</header>
       
       {/* Enhanced Hero Section with parallax and spotlight effects */}
       <motion.section
