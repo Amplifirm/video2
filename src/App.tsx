@@ -15,8 +15,8 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/shit" element={<BadIBPractice />} />
-            <Route path="/2" element={<Home2 />} />
-    
+            <Route path="/NewHome" element={<Home2 />} />
+
           </Routes>
         </AnimatePresence>
  
