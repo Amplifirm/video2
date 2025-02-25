@@ -25,58 +25,6 @@ const useMousePosition = () => {
 // ==================
 
 // Magnetic element component
-const MagneticElement: React.FC<{
-  children: React.ReactNode;
-  className?: string;
-  strength?: number;
-}> = ({ 
-  children, 
-  className = "", 
-  strength = 25 
-}) => {
-  const elementRef = useRef<HTMLDivElement>(null);
-  const [elementPosition, setElementPosition] = useState({ x: 0, y: 0 });
-  
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!elementRef.current) return;
-      
-      const { left, top, width, height } = elementRef.current.getBoundingClientRect();
-      const centerX = left + width / 2;
-      const centerY = top + height / 2;
-      
-      const distanceX = e.clientX - centerX;
-      const distanceY = e.clientY - centerY;
-      
-      const distance = Math.sqrt(distanceX * distanceX + distanceY * distanceY);
-      const radius = Math.max(width, height) / 2;
-      
-      if (distance < radius * 2) {
-        const pull = 1 - Math.min(distance / (radius * 2), 1);
-        const moveX = distanceX * pull * strength / 20;
-        const moveY = distanceY * pull * strength / 20;
-        
-        setElementPosition({ x: moveX, y: moveY });
-      } else {
-        setElementPosition({ x: 0, y: 0 });
-      }
-    };
-    
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [strength]);
-  
-  return (
-    <motion.div 
-      ref={elementRef}
-      animate={{ x: elementPosition.x, y: elementPosition.y }}
-      transition={{ type: "spring", stiffness: 350, damping: 15 }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-};
 
 // Button component
 const Button: React.FC<{
@@ -93,33 +41,32 @@ const Button: React.FC<{
   outlined = false 
 }) => {
   return (
-    <MagneticElement strength={40} className={`inline-block ${className}`}>
-      <motion.button
-        onClick={onClick}
-        className={`relative px-7 py-3.5 rounded-lg font-medium text-sm z-10 overflow-hidden
-                  ${outlined 
-                    ? 'border border-white/20 hover:border-white/40 text-white' 
-                    : primary 
-                      ? 'bg-black text-white border border-zinc-800'
-                      : 'bg-white text-black'
-                  }`}
-        whileHover={{ y: -4 }}
-        whileTap={{ y: -2 }}
-      >
-        <span className="relative z-10 flex items-center gap-2">
-          {children}
-        </span>
-        
-        <motion.div 
-          className={`absolute inset-0 ${outlined ? 'bg-white/5' : primary ? 'bg-zinc-800' : 'bg-white/90'}`}
-          initial={{ x: "100%" }}
-          whileHover={{ x: "0%" }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-        />
-      </motion.button>
-    </MagneticElement>
+    <motion.button
+      onClick={onClick}
+      className={`relative px-7 py-3.5 rounded-lg font-medium text-sm z-10 overflow-hidden inline-block ${className}
+                ${outlined 
+                  ? 'border border-white/20 hover:border-white/40 text-white' 
+                  : primary 
+                    ? 'bg-black text-white border border-zinc-800'
+                    : 'bg-white text-black'
+                }`}
+      whileHover={{ y: -4 }}
+      whileTap={{ y: -2 }}
+    >
+      <span className="relative z-10 flex items-center gap-2">
+        {children}
+      </span>
+      
+      <motion.div 
+        className={`absolute inset-0 ${outlined ? 'bg-white/5' : primary ? 'bg-zinc-800' : 'bg-white/90'}`}
+        initial={{ x: "100%" }}
+        whileHover={{ x: "0%" }}
+        transition={{ duration: 0.3, ease: "easeInOut" }}
+      />
+    </motion.button>
   );
 };
+
 
 // Reveal text animation component
 const RevealText: React.FC<{ 
@@ -662,7 +609,7 @@ const HeroSection: React.FC = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <iframe
-                src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1"
+                src="https://www.youtube.com/embed/"
                 title="Video Showreel"
                 className="w-full h-full"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
