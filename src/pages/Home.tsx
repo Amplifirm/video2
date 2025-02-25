@@ -8,7 +8,6 @@ import {
   AnimatePresence,
   useMotionValue,
   useMotionTemplate,
-  MotionValue
 } from 'framer-motion';
 import { 
   FaPlay, 
@@ -25,7 +24,6 @@ import {
   FaEdit,
   FaMagic,
   FaInstagram,
-  FaTiktok,
   FaYoutube
 } from 'react-icons/fa';
 
@@ -831,95 +829,6 @@ const SectionHeader: React.FC<{
   );
 };
 
-// Animated Shape Elements for background (continued from previous artifact)
-const ShapeElements: React.FC = () => {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      <motion.div 
-        className="absolute top-20 left-10 w-32 h-32 bg-blue-50 rounded-full opacity-70"
-        animate={{ 
-          y: [0, 15, 0],
-          rotate: [0, 5, 0]
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-      
-      <motion.div 
-        className="absolute top-40 right-20 w-24 h-24 bg-orange-50 rounded-full opacity-70"
-        animate={{ 
-          y: [0, -20, 0],
-          rotate: [0, -8, 0]
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1
-        }}
-      />
-      
-      <motion.div 
-        className="absolute bottom-40 left-20 w-40 h-40 bg-blue-50 rotate-45 opacity-70"
-        animate={{ 
-          scale: [1, 1.1, 1],
-          rotate: [45, 55, 45]
-        }}
-        transition={{
-          duration: 12,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2
-        }}
-      />
-      
-      <motion.div 
-        className="absolute bottom-20 right-10 w-32 h-32 bg-orange-50 rounded-full opacity-70"
-        animate={{ 
-          x: [0, 15, 0],
-          y: [0, 10, 0]
-        }}
-        transition={{
-          duration: 9,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 3
-        }}
-      />
-      
-      <motion.div 
-        className="absolute top-1/3 left-1/3 w-16 h-16 bg-purple-50 rounded-full opacity-50"
-        animate={{ 
-          scale: [1, 1.3, 1],
-          opacity: [0.5, 0.3, 0.5]
-        }}
-        transition={{
-          duration: 7,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1.5
-        }}
-      />
-      
-      <motion.div 
-        className="absolute bottom-1/3 right-1/4 w-20 h-20 bg-green-50 rounded-full opacity-50"
-        animate={{ 
-          scale: [1, 1.2, 1],
-          opacity: [0.5, 0.3, 0.5]
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 2.5
-        }}
-      />
-    </div>
-  );
-};
 
 // Animated Blob Background
 const BlobBackground: React.FC = () => {
@@ -1179,35 +1088,7 @@ const AnimatedCounter: React.FC<{
   );
 };
 
-// Floating Elements Animation
-const FloatingElement: React.FC<{
-  children: React.ReactNode;
-  className?: string;
-  amplitude?: number;
-  duration?: number;
-  delay?: number;
-}> = ({ 
-  children, 
-  className = '', 
-  amplitude = 10, 
-  duration = 5,
-  delay = 0
-}) => {
-  return (
-    <motion.div
-      className={className}
-      animate={{ y: [-amplitude, amplitude, -amplitude] }}
-      transition={{
-        duration,
-        repeat: Infinity,
-        ease: "easeInOut",
-        delay
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-};
+
 
 // Advanced Mouse-following Cursor Effect
 const MouseCursor: React.FC = () => {
@@ -1259,7 +1140,7 @@ const GlowButton: React.FC<{
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!buttonRef.current) return;
     
-    const { left, top, width, height } = buttonRef.current.getBoundingClientRect();
+    const { left, top} = buttonRef.current.getBoundingClientRect();
     const x = e.clientX - left;
     const y = e.clientY - top;
     
